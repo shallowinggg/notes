@@ -1413,6 +1413,84 @@ Head -> SslHandler(optional) -> NettyEncoder -> NettyDecoder -> IdleStateHandler
 
 当处理完异步请求的回复后，将会调用`Semaphore#release()`方法释放一个异步请求资格。
 
+异步调用时存在一个新的问题，即异步调用也需要提供一个超时时间，由于无法和同步调用一样等待给定的超时时间，因此需要其他线程在请求表中检查已超时的异步请求。在`NettyRemotingClient#start()`方法中，存在如下一段代码：
+
+```java
+    this.timer.scheduleAtFixedRate(new TimerTask() {
+        @Override
+        public void run() {
+            try {
+                NettyRemotingClient.this.scanResponseTable();
+            } catch (Throwable e) {
+                log.error("scanResponseTable exception", e);
+            }
+            }
+    }, 1000 * 3, 1000);
+
+    public void scanResponseTable() {
+        final List<ResponseFuture> rfList = new LinkedList<ResponseFuture>();
+        Iterator<Entry<Integer, ResponseFuture>> it = this.responseTable.entrySet().iterator();
+        while (it.hasNext()) {
+            Entry<Integer, ResponseFuture> next = it.next();
+            ResponseFuture rep = next.getValue();
+
+            if ((rep.getBeginTimestamp() + rep.getTimeoutMillis() + 1000) <= System.currentTimeMillis()) {
+                rep.release();
+                it.remove();
+                rfList.add(rep);
+                log.warn("remove timeout request, " + rep);
+            }
+        }
+
+        for (ResponseFuture rf : rfList) {
+            try {
+                executeInvokeCallback(rf);
+            } catch (Throwable e) {
+                log.warn("scanResponseTable, operationComplete Exception", e);
+            }
+        }
+    }
+
+    private void executeInvokeCallback(final ResponseFuture responseFuture) {
+        boolean runInThisThread = false;
+        ExecutorService executor = this.getCallbackExecutor();
+        if (executor != null) {
+            try {
+                executor.submit(new Runnable() {
+                    @Override
+                    public void run() {
+                        try {
+                            responseFuture.executeInvokeCallback();
+                        } catch (Throwable e) {
+                            log.warn("execute callback in executor exception, and callback throw", e);
+                        } finally {
+                            responseFuture.release();
+                        }
+                    }
+                });
+            } catch (Exception e) {
+                runInThisThread = true;
+                log.warn("execute callback in executor exception, maybe executor busy", e);
+            }
+        } else {
+            runInThisThread = true;
+        }
+
+        if (runInThisThread) {
+            try {
+                responseFuture.executeInvokeCallback();
+            } catch (Throwable e) {
+                log.warn("executeInvokeCallback Exception", e);
+            } finally {
+                responseFuture.release();
+            }
+        }
+    }
+
+```
+
+`RocketMQ`启用一个定时器执行扫描请求表任务，如果检查到有请求已经超时，那么将其从请求表中删除，并调用其回调方法。在`InvokeCallback#operationComplete`方法中，你可以根据其参数`ResponseFuture`提供的方法检查请求是否成功。当然，由于`RocketMQ`并未提供相关文档，因此编码时可能默认会将这个当作请求成功，导致一系列bug存在。因此，如果在其他项目中借用此模块，要么提供良好的文档说明，要么将这个方法拆分为`operateSuccess`以及`operateFail`两个方法。
+
 ### 单向调用
 
 单向调用与异步调用类似，也需要获取请求资格，默认最大限制也是65535，可以设置系统属性`com.rocketmq.remoting.clientOnewaySemaphoreValue`来改变默认值。另外，单向调用无需服务端发送回复。
