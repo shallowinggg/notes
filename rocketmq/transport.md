@@ -1,5 +1,7 @@
 RocketMQ使用Netty进行底层通信，包括`NameServer`、`Broker(Master/Slave)`、`Producer`、`Consumer`4个角色，接下来让我们分析一下它是如何实现的。
 
+Version: 4.5.2
+
 ## 基本概念
 
 `rocketmq-remoting`模块承担了远程通信的任务，相关代码都存在于`org.apache.rocketmq.remoting`包下面。
@@ -10,7 +12,7 @@ RocketMQ使用Netty进行底层通信，包括`NameServer`、`Broker(Master/Slav
 
 remoting通信类结构如下：
 
-![](https://upload-images.jianshu.io/upload_images/13068256-8143921177f7967a.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![](image/rocketmq_design_3.png)
 
 `RemotingServer`和`RemotingClient`接口都提供了同步调用，异步调用以及单向调用三种通信方式，因此可以满足几乎所有的通信需求。在此基础上，使用`Netty`作为具体实现，完成高性能的通信过程。
 
@@ -33,7 +35,7 @@ extFields | HashMap<String, String> | 请求自定义扩展信息 | 响应自定
 
 对其进行编码以后，一个完整的消息结构如下所示：
 
-![rocketmq_design_4.png](https://upload-images.jianshu.io/upload_images/13068256-fa369ba9deed9c28.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![rocketmq_design_4.png](image/rocketmq_design_4.png))
 
 可见传输内容主要可以分为以下4部分：
 
@@ -50,7 +52,7 @@ extFields | HashMap<String, String> | 请求自定义扩展信息 | 响应自定
 
 `RocketMQ`的RPC通信采用`Netty`组件作为底层通信库，同样也遵循了`Reactor`多线程模型，同时又在这之上做了一些扩展和优化。
 
-![](https://upload-images.jianshu.io/upload_images/13068256-474c73a2de8b3e56.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![](image/rocketmq_design_6.png)
 
 在`Netty`的`ChannelPipeline`链中包含编码器，解码器，空闲状态处理器，连接管理器以及核心的业务处理器。其中编码器和解码器用于`RemotingCommand`的编解码；空闲状态处理器用于检测空闲连接，如果某个客户端在给定时间内未与服务端通信（无论读写），那么将会关闭这个空闲连接；连接管理器用于记录客户端连接日志，同时也作为事件源，发出连接事件，空闲时间，连接关闭事件，异常事件等，用户可以自定义监听器处理这些事件。
 
