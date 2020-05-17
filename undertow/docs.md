@@ -98,9 +98,9 @@ Undertow是一个Web服务器，被设计同时用于阻塞和非阻塞任务。
 
 从8.0版本开始，`Undertow`已经成为了`Wildfly`的Web服务器组件。如果你使用的是Wildfly，那么你已经有了Undertow。
 
-### `Maven`
+### Maven
 
-Undertow是使用``Maven``构建的，并已同步到``Maven` Central`。Undertow提供了三个独立的artifacts：
+Undertow是使用`Maven`构建的，并已同步到`Maven Central`。Undertow提供了三个独立的`artifacts`：
 
 - **Core**
 Undertow核心代码，为非阻塞处理器和Web socket提供支持
@@ -111,9 +111,8 @@ Undertow核心代码，为非阻塞处理器和Web socket提供支持
 - **Websockets JSR**
 支持`Websockets(JSR-356)`的Java API标准
 
-In order to use Undertow in your maven projects just include the following section in your pom.xml, and set the undertow.version property to whatever version of Undertow you wish to use. Only the core artifact is required, if you are not using Servlet or JSR-356 then those artifacts are not required.
 
-为了能在你的`Maven`项目中使用Undertow，需要在`pom.xml`中加入以下部分，并将`undertow.version`属性设置为你要使用的Undertow版本。其中`undertow-core`是必需的artifact，如果你不使用`Servlet`或`JSR-356`，则不需要另外两个artifact。
+为了能在你的`Maven`项目中使用Undertow，你需要在`pom.xml`中加入以下部分，并将`undertow.version`属性设置为你要使用的Undertow版本。其中`undertow-core`是必需的`artifact`，如果你不使用`Servlet`或`JSR-356`，那么不需要引入另外两个`artifact`。
 
 ```xml
 <dependency>
@@ -133,12 +132,13 @@ In order to use Undertow in your maven projects just include the following secti
 </dependency>
 ```
 
-### Direct Download
+### 直接下载
+
 你也可以直接从`Maven`仓库下载Undertow。
 
 Undertow依赖`XNIO`和`JBoss Logging`，它们也需要一起下载。
 
-### Build it yourself
+### 自己构建
 
 为了获得最新的代码，你可以自己构建Undertow。
 
@@ -221,7 +221,7 @@ public class HelloWorldServer {
 
 4. 使用`XNIO`打开服务器套接字并设置其accept监听器
 
-HTTP，HTTPS和AJP监听器的代码如下所示：
+`HTTP`，`HTTPS`和`AJP`监听器的代码如下所示：
 
 ```java
 Xnio xnio = Xnio.getInstance();
