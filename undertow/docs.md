@@ -369,221 +369,291 @@ public class SetHeaderHandler implements HttpHandler {
 
 ## Listeners
 
-Listeners represent the entry point of an Undertow application. All incoming requests will come through a listener, and a listener is responsible for translating a request into an instance of the HttpServerExchange object, and then turning the result into a response that can be sent back to the client.
+监听器代表Undertow应用程序的入口点。所有传入的请求都将通过监听器来进行，并且监听器负责将请求转换为`HttpServerExchange`类的实例，然后将结果转换为可以发送回客户端的响应。
 
-Undertow provides 3 built in listener types, HTTP/1.1, AJP and HTTP/2. HTTPS is provided by using the HTTP listener with an SSL enabled connection.
+Undertow提供了3种内置的监听器类型，即`HTTP/1.1`，`AJP`和`HTTP/2`。通过使用`HTTP`监听器以及启用`SSL`的连接可以提供`HTTPS`。
 
-Undertow also supports version 1 of the proxy protocol, which can be combined with any of the above listener types by setting useProxyProtocol to true on the listener builder.
+Undertow还支持代理协议的version 1，你可以通过监听器的构建器将`useProxyProtocol`属性设置为`true`与上面三种监听器类型组合。
 
-Options
-Undertow listeners can be configured through the use of the org.xnio.Option class. In general options for XNIO that control connection and worker level behaviour are listed in org.xnio.Options. Undertow specific options that control connector level behaviour are listed in io.undertow.UndertowOptions.
+### Options
 
-XNIO workers
-All listeners are tied to an XNIO Worker instance. Usually there will only be a single worker instance that is shared between listeners, however it is possible to create a new worker for each listener.
+你可以通过`org.xnio.Option`类来配置Undertow监听器。XNIO的通用选项例如控制连接和worker级别行为在`org.xnio.Options`类中列出，而Underwow的特定选项例如控制连接器级别行为则在`io.undertow.UndertowOptions`中列出。
 
-The worker instance manages the listeners IO threads, and also the default blocking task thread pool. There are several main XNIO worker options that affect listener behaviour. These option can either be specified on the Undertow builder as worker options, or at worker creating time if you are bootstrapping a server manually. These options all reside on the org.xnio.Options class.
+### XNIO workers
 
-WORKER_IO_THREADS
-The number of IO threads to create. IO threads perform non blocking tasks, and should never perform blocking operations because they are responsible for multiple connections, so while the operation is blocking other connections will essentially hang. Two IO threads per CPU core is a reasonable default.
+所有监听器都将绑定到某个`XNIO Worker`实例上。通常，只有一个工作器（`XNIO Worker`）实例在监听器之间共享，但是也可以为每个监听器创建一个新的工作器。
 
-WORKER_TASK_CORE_THREADS
-The number of threads in the workers blocking task thread pool. When performing blocking operations such as Servlet requests threads from this pool will be used. In general it is hard to give a reasonable default for this, as it depends on the server workload. Generally this should be reasonably high, around 10 per CPU core.
+工作器实例管理监听器的IO线程以及默认的阻塞任务线程池。有几个主要的`XNIO Wroker`选项会影响监听器的行为。这些选项要么通过Undertow构建器指定为worker选项，要么在`XNIO Worker`创建时指定（如果要手动引导服务器）。这些选项全部位于`org.xnio.Options`类上。
 
-Buffer Pool
-All listeners have a buffer pool, which is used to allocate pooled NIO ByteBuffer instances. These buffers are used for IO operations, and the buffer size has a big impact on application performance. For servers the ideal size is generally 16k, as this is usually the maximum amount of data that can be written out via a write() operation (depending on the network setting of the operating system). Smaller systems may want to use smaller buffers to save memory.
+#### WORKER_IO_THREADS
 
-In some situations with blocking IO the buffer size will determine if a response is sent using chunked encoding or has a fixed content length. If a response fits completely in the buffer and flush() is not called then a content length can be set automatically.
+要创建的IO线程数。IO线程执行非阻塞任务，并且永远不会执行阻塞操作，因为它们负责多个连接，因此如果进行阻塞操作那么其他连接实质上将挂起。每个CPU核心两个IO线程是一个合理的默认设置。
 
-Common Listener Options
-In addition to the worker options the listeners take some other options that control server behaviour. These are all part of the io.undertow.UndertowOptions class. Some of of these only make sense for specific protocols. You can set options with the Undertow.Builder.setServerOption:
+#### WORKER_TASK_CORE_THREADS
 
-MAX_HEADER_SIZE
-The maximum size of a HTTP header block, in bytes. If a client sends more data that this as part of the request header then the connection will be closed. Defaults to 50k.
+工作器阻塞任务线程池的线程数。当执行诸如`Servlet`请求之类的阻塞操作时，将使用该线程池中的线程。通常，很难为此设置一个合理的默认值，因为它取决于服务器的工作负载。通常，它应该在合理范围内较高，每个CPU核心大约10个。
 
-MAX_ENTITY_SIZE
-The default maximum size of a request entity. If entity body is larger than this limit then a java.io.IOException will be thrown at some point when reading the request (on the first read for fixed length requests, when too much data has been read for chunked requests). This value is only the default size, it is possible for a handler to override this for an individual request by calling io.undertow.server.HttpServerExchange.setMaxEntitySize(long size). Defaults to unlimited.
+### Buffer Pool
 
-MULTIPART_MAX_ENTITY_SIZE
-The default max entity size when using the Multipart parser. This will generally be larger than MAX_ENTITY_SIZE. Having a separate setting for this allows for large files to be uploaded, while limiting the size of other requests.
+所有监听器都有一个缓冲池，用于分配池化的`NIO ByteBuffer`实例。这些缓冲区用于IO操作，缓冲区大小对应用程序性能有很大影响。对于服务器，理想大小通常为16k，因为这通常是可以通过`write()`操作写出的最大数据量（取决于操作系统的网络设置）。较小的系统可能希望使用较小的缓冲区来节省内存。
 
-MAX_PARAMETERS
-The maximum number of query parameters that are permitted in a request. If a client sends more than this number the connection will be closed. This limit is necessary to protect against hash based denial of service attacks. Defaults to 1000.
+在某些情况下例如阻塞IO，缓冲区大小将决定是使用分块编码发送响应还是通过固定的内容长度发送响应。如果响应大小完全适合缓冲区并且`flush()`方法未被调用，那么内容长度会被自动设置。
 
-MAX_HEADERS
-The maximum number of headers that are permitted in a request. If a client sends more than this number the connection will be closed. This limit is necessary to protect against hash based denial of service attacks. Defaults to 200.
+### Common Listener Options
 
-MAX_COOKIES
-The maximum number of cookies that are permitted in a request. If a client sends more than this number the connection will be closed. This limit is necessary to protect against hash based denial of service attacks. Defaults to 200.
+除了工作器选项之外，监听器还采用其他一些选项来控制服务器的行为。这些选项都是`io.undertow.UndertowOptions`类的一部分，其中一些仅对特定协议有意义。你可以使用`Undertow.Builder.setServerOption`来设置以下选项：
 
-URL_CHARSET
-The charset to use to decode the URL and query parameters. Defaults to UTF-8.
+#### MAX_HEADER_SIZE
 
-DECODE_URL
-Determines if the listener will decode the URL and query parameters, or simply pass it through to the handler chain as is. If this is set url encoded characters will be decoded to the charset specified in URL_CHARSET. Defaults to true.
+HTTP头部块的最大大小，以字节为单位。如果客户端发送更多数据作为请求头的一部分，那么连接将关闭。默认为50k。
 
-ALLOW_ENCODED_SLASH
-If a request comes in with encoded / characters (i.e. %2F), will these be decoded. This can cause security problems (link:http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2007-0450) if a front end proxy does not perform the same decoding, and as a result this is disabled by default.
+#### MAX_ENTITY_SIZE
 
-ALLOW_EQUALS_IN_COOKIE_VALUE
-If this is true then Undertow will allow non-escaped equals characters in unquoted cookie values. Unquoted cookie values may not contain equals characters. If present the value ends before the equals sign. The remainder of the cookie value will be dropped. Defaults to false.
+请求实体的默认最大大小。如果实体的主体（`body`）大小大于此限制，那么在读取请求时（对于固定长度请求第一次读取，对于分块请求读取的数据太多）将在某个点抛出`java.io.IOException`异常 。该值仅是默认大小，处理器可以调用`io.undertow.server.HttpServerExchange.setMaxEntitySize(long size)`方法为某个请求覆盖此值。默认值为无限制。
 
-ALWAYS_SET_DATE
-If the server should add a HTTP Date header to all response entities which do not already have one. The server sets the header right before writing the response, if none was set by a handler before. Unlike the DateHandler it will not overwrite the header. The current date string is cached, and is updated every second. Defaults to true.
+#### MULTIPART_MAX_ENTITY_SIZE
 
-ALWAYS_SET_KEEP_ALIVE
-If a HTTP Connection: keep-alive header should always be set, even for HTTP/1.1 requests that are persistent by default. Even though the spec does not require this header to always be sent it seems safer to always send it. If you are writing some kind of super high performance application and are worried about the extra data being sent over the wire this option allows you to turn it off. Defaults to true.
+使用`Multipart`解析器时的默认最大实体大小。通常大于`MAX_ENTITY_SIZE`。为了能够上传大文件对此有一个单独的设置，同时可以限制其他类型请求的大小。
 
-MAX_BUFFERED_REQUEST_SIZE
-The maximum size of a request that can be saved in bytes. Requests are buffered in a few situations, the main ones being SSL renegotiation and saving post data when using FORM based auth. Defaults to 16,384 bytes.
+#### MAX_PARAMETERS
 
-RECORD_REQUEST_START_TIME
-If the server should record the start time of a HTTP request. This is necessary if you wish to log or otherwise use the total request time, however has a slight performance impact, as it means that System.nanoTime() must be called for each request. Defaults to false.
+一个请求中允许的最大查询参数数量。如果客户端发送的参数数量超过此限制，那么连接将关闭。这个限制是必需的，它可以防止基于散列的拒绝服务攻击。默认值为1000。
 
-IDLE_TIMEOUT
-The amount of time a connection can be idle for before it is timed out. An idle connection is a connection that has had no data transfer in the idle timeout period. Note that this is a fairly coarse grained approach, and small values will cause problems for requests with a long processing time.
+#### MAX_HEADERS
 
-REQUEST_PARSE_TIMEOUT
-How long a request can spend in the parsing phase before it is timed out. This timer is started when the first bytes of a request are read, and finishes once all the headers have been parsed.
+一个请求中允许的最大标头（`header`）数。如果客户端发送的数量超过此限制，那么连接将关闭。这个限制是必需的，它可以防止基于散列的拒绝服务攻击。默认为200。
 
-NO_REQUEST_TIMEOUT
-The amount of time a connection can sit idle without processing a request, before it is closed by the server.
+#### MAX_COOKIES
 
-ENABLE_CONNECTOR_STATISTICS
-If this is true then the connector will record statistics such as requests processed and bytes sent/received. This has a performance impact, although it should not be noticeable in most cases.
+一个请求中允许Cookie的最大数量。如果客户端发送的数量超过此限制，那么连接将关闭。这个限制是必需的，它可以防止基于散列的拒绝服务攻击。默认为200。
 
-ALPN
+#### URL_CHARSET
+
+用于解码URL和查询参数的字符集。默认为UTF-8。
+
+#### DECODE_URL
+
+决定监听器是否解码URL和查询参数，还是直接将其传递给处理器链。如果这个选项设置为`true`，那么监听器会将url编码的字符解码为`URL_CHARSET`中指定的字符集。默认为true。
+
+#### ALLOW_ENCODED_SLASH
+
+如果一个请求带有编码的`/`字符（例如`％2F`），这些字符将被解码。如果前端代理未执行相同的解码，则可能会导致[安全问题](http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2007-0450)，因此默认情况下禁用此功能。
+
+#### ALLOW_EQUALS_IN_COOKIE_VALUE
+
+如果为`true`，那么Undertow将允许在未加引号的cookie值中包含未转义的`=`字符。未加引号的cookie值事实上不能包含`=`字符，如果存在`=`字符，那么cookie值将在`=`之前结束，cookie值的剩余部分将被丢弃。默认为false。
+
+#### ALWAYS_SET_DATE
+
+服务器是否应将`HTTP Date`标头添加到所有没有此标头的HTTP回复中。如果处理器之前未设置此标头，那么服务器将在写入回复之前立即设置标头。不同于`DateHandler`，它不会覆盖标头。当前日期字符串将被缓存，并每秒更新一次。默认为true。
+
+#### ALWAYS_SET_KEEP_ALIVE
+
+`HTTP Connection: keep-alive`标头是否应该始终设置，即使对于默认情况下已经持久化的`HTTP/1.1`请求。虽然规范没有要求始终发送此标头，但始终发送它似乎更安全。如果你正在编写某种超高性能应用程序，并且担心会发送额外数据，那么可以将关闭此选项。默认为`true`。
+
+#### MAX_BUFFERED_REQUEST_SIZE
+
+可以保存的最大请求大小（以字节为单位）。在某些情况下会缓冲请求，最常见的情况为SSL重新协商并且使用基于`FORM`的身份验证时保存`post`数据。默认为16,384字节。
+
+#### RECORD_REQUEST_START_TIME
+
+服务器是否应记录HTTP请求的开始时间。如果你希望记录或以其他方式使用总请求时间，那么这是必需的，但是这会对性能产生一点影响，因为这意味着每个请求都需要调用`System.nanoTime()`方法。默认为`false`。
+
+#### IDLE_TIMEOUT
+
+连接超时之前可以空闲的时间。空闲连接是指在空闲超时期间内没有数据传输的连接。请注意，这是一个粗粒度的方法，如果设置了较小的值，那么可能会导致处理时间较长的请求出现问题。
+
+#### REQUEST_PARSE_TIMEOUT
+
+在超时之前，请求可以在解析阶段花费多长时间。当读取请求的第一个字节时，此计时器启动，并在解析完所有标头后结束。
+
+#### NO_REQUEST_TIMEOUT
+
+在服务器关闭连接之前，连接可以闲置而不处理请求的时间。
+
+#### ENABLE_CONNECTOR_STATISTICS
+
+如果为`true`，那么连接器将记录统计信息，例如已处理的请求以及已发送/已接收的字节。这会影响性能，虽然在大多数情况下不会引起注意。
+
+### ALPN
+
+```java
 io.undertow.server.protocol.http.AlpnOpenListener
+```
 
-The HTTP/2 connector requires the use of ALPN when running over SSL.
+通过SSL运行时，`HTTP/2`连接器要求使用`ALPN`。
 
-As of Java 9 the JDK supports ALPN natively, however on previous JDKs different approaches need to be used.
+从Java 9开始，JDK内部支持`ALPN`，但是在之前版本的JDK上，需要使用其他方法。
 
-If you are using OpenJDK/Oracle JDK then Undertow contains a workaround that should allow ALPN to work out of the box.
+如果你使用的是`OpenJDK / Oracle JDK`，那么Undertow提供了一种开箱即用`ALPN`的方法。
 
-Alternatively you can use the Wildfly OpenSSL project to provide ALPN, which should also perform better than the JDK SSL implementation.
+或者，你可以使用`Wildfly OpenSSL`项目来提供`ALPN`，其性能也比`JDK SSL`实现更好。
 
-Another option is to use Jetty ALPN, however it is not recommended as it is no longer tested as part of the Undertow test suite. For more information see the Jetty ALPN documentation.
+另一个选择是使用`Jetty ALPN`，但是并不推荐这个方法，因为它不再作为Undertow测试套件的一部分进行测试。有关更多信息，请参阅[Jetty ALPN文档](http://www.eclipse.org/jetty/documentation/current/alpn-chapter.html)。
 
-HTTP Listener
+### HTTP Listener
+
+```java
 io.undertow.server.protocol.http.HttpOpenListener
+```
 
-The HTTP listener is the most commonly used listener type, and deals with HTTP/1.0 and HTTP/1.1. It only takes one additional option.
+HTTP监听器是最常用的侦听器类型，可以处理`HTTP/1.0`和`HTTP/1.1`。它仅需要一个附加选项：
 
-ENABLE_HTTP2
-If this is true then the connection can be processed as a HTTP/2 prior knowledge connection. If a HTTP/2 client connects directly to the listener with a HTTP/2 connection preface then the HTTP/2 protocol will be used instead of HTTP/1.1.
+#### ENABLE_HTTP2
 
-AJP Listener
+如果为`true`，则可以将该连接作为`HTTP/2` prior knowledge连接进行处理。如果`HTTP/2`客户端使用`HTTP/2`连接前言直接连接到侦听器，那么将使用`HTTP/2`协议代替`HTTP/1.1`。
+
+### AJP Listener
+
+```java
 io.undertow.server.protocol.ajp.AjpOpenListener
+```
 
-The AJP listener allows the use of the AJP protocol, as used by the Apache modules mod_jk and mod_proxy_ajp. It is a binary protocol that is slightly more efficient protocol than HTTP, as some common strings are replaced by integers. If the front end load balancer supports it then it is recommended to use HTTP2 instead, as it is both a standard protocol and more efficient.
+`AJP`侦听器允许使用`AJP`协议，如Apache的`mod_jk`和`mod_proxy_ajp`模块所使用的那样。它是一种二进制协议，比HTTP协议更有效，因为某些通用字符串已被整数替换。如果前端负载均衡器支持`HTTP2`，则建议改用`HTTP2`，因为它既是标准协议，同时效率更高。
 
-This listener has one specific option:
+该侦听器有一个特定选项：
 
-MAX_AJP_PACKET_SIZE
-Controls the maximum size of an AJP packet. This setting must match on both the load balancer and backend server.
+#### MAX_AJP_PACKET_SIZE
 
-HTTP2 Listener
-HTTP/2 support is implemented on top of HTTP/1.1 (it is not possible to have a HTTP/2 server that does not also support HTTP/1). There are three different ways a HTTP/2 connection can be established:
+控制`AJP`数据包的最大大小。此设置在负载均衡器和后端服务器上必须匹配。
 
-ALPN
-This is the most common way (and the only way many browsers currently support). It requires HTTPS, and uses the application layer protocol negotiation SSL extension to negotiate that connection will use HTTP/2.
+### HTTP2 Listener
 
-Prior Knowledge
-This involves the client simply sending a HTTP/2 connection preface and assuming the server will support it. This is not generally used on the open internet, but it’s useful for things like load balancers when you know the backend server will support HTTP/2.
+`HTTP/2`支持是在`HTTP/1.1`之上实现的（不可能有不支持`HTTP/1`的`HTTP/2`服务器）。可以通过三种不同方式建立`HTTP/2`连接：
 
-HTTP Upgrade
-This involves the client sending an Upgrade: h2c header in the initial request. If this upgrade is accepted then the server will initiate a HTTP/2 connection, and send back the response to the initial request using HTTP/2.
+#### ALPN
 
-Depending on the way HTTP/2 is being used the setup for the listeners is slightly different.
+这是最常见的方式（也是许多浏览器当前支持的唯一方式）。它需要`HTTPS`，并使用应用层协议`negotiation SSL extension`来协商将使用`HTTP/2`的连接。
 
-If you are using the Undertow builder all that is required is to call setServerOption(ENABLE_HTTP2, true), and HTTP/2 support will be automatically added for all HTTP and HTTPS listeners.
+#### Prior Knowledge
 
-If JDK8 is in use then Undertow will use a reflection based implementation of ALPN that should work with OpenJDK/Oracle JDK. If JDK9+ is in use then Undertow will use the ALPN implementation provided by the JDK.
+客户端仅发送`HTTP/2`连接前言并假定服务器支持它。在开放的Internet上通常不使用此功能，但是当你知道后端服务器支持`HTTP/2`时，它对于负载均衡器之类的功能很有用。
 
-The following options are supported:
+#### HTTP 
 
-HTTP2_SETTINGS_HEADER_TABLE_SIZE
-The size of the header table that is used for compression. Increasing this will use more memory per connection, but potentially decrease the amount of data that is sent over the wire. Defaults to 4096.
+客户端在初始请求中发送`Upgrade: h2c`标头。如果服务器接受升级，那么将启动`HTTP/2`连接，并使用`HTTP/2`将响应发送回初始请求。
 
-HTTP2_SETTINGS_ENABLE_PUSH
-If server push is enabled for this connection.
+根据使用`HTTP/2`的方式，侦听器的设置略有不同。
 
-HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS
-The maximum number of streams a client is allowed to have open at any one time.
+如果你使用的是Undertow构建器，则只需调用`setServerOption(ENABLE_HTTP2, true)`方法，此时会自动为所有`HTTP`和`HTTPS`侦听器添加`HTTP/2`支持。
 
-HTTP2_SETTINGS_INITIAL_WINDOW_SIZE
-The initial flow control window size.
+如果你正在使用JDK8，那么Undertow将使用`ALPN`基于反射的实现，这个实现应与`OpenJDK / Oracle JDK`一起使用。如果你正在使用`JDK9+`，那么Undertow将使用JDK提供的`ALPN`实现。
 
-HTTP2_SETTINGS_MAX_FRAME_SIZE
-The maximum frame size.
+查看[HTTP2简介](https://developers.google.com/web/fundamentals/performance/http2?hl=zh-cn)以获取HTTP2的基础知识。
 
-HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE
-The maximum size of the headers that this server is prepared to accept.
+支持以下选项：
 
-Built in Handlers
-Undertow contains a number of build in handlers that provide common functionality. Most of these handlers can be created using static methods on the io.undertow.Handlers utility class.
+#### HTTP2_SETTINGS_HEADER_TABLE_SIZE
 
-The most common of these handlers are detailed below.
+用于首部压缩的标头表（`header table`）大小。增大此值将为每个连接使用更多的内存，但可能会减少通过有线网络发送的数据量。默认为4096。
 
-Path
-The path matching handler allows you to delegate to a handler based on the path of the request. It can match on either an exact path or a path prefix, and will update the exchanges relative path based on the selected path. Paths are first checked against an exact match, and then via longest prefix match.
+#### HTTP2_SETTINGS_ENABLE_PUSH
 
-Virtual Host
-This handler delegates to a handler based on the contents of the Host: header, which allows you to select a different chain to handle different hosts.
+是否为此连接启用服务器推送。
 
-Path Template
-Similar to the path handler, however the path template handler allows you to use URI template expressions in the path, for example /rest/{name}. The value of the relevant path template items are stored as an attachment on the exchange, under the io.undertow.util.PathTemplateMatch#ATTACHMENT_KEY attachment key.
+#### HTTP2_SETTINGS_MAX_CONCURRENT_STREAMS
 
-Resource
-The resource handler is used to serve static resources such as files. This handler takes a ResourceManager instance, that is basically a file system abstraction. Undertow provides file system and class path based resource mangers, as well as a caching resource manager that wraps an existing resource manager to provide in memory caching support.
+允许客户端在任何一次打开流的最大数量。
 
-Predicate
-The predicate handler picks between two possible handlers based on the value of a predicate that is resolved against the exchange. For more information see the predicates guide.
+#### HTTP2_SETTINGS_INITIAL_WINDOW_SIZE
 
-HTTP Continue
-There are multiple handlers that deal with requests that expect a HTTP 100 Continue response. The HTTP Continue Read Handler will automatically send a continue response for requests that require it the first time a handler attempts to read the request body. The HTTP Continue Accepting handler will immediately either send a 100 or a 417 response depending on the value of a predicate. If no predicate is supplied it all immediately accept all requests. If a 417 response code is send the next handler is not invoked and the request will be changed to be non persistent.
+初始流量控制窗口的大小。
 
-Websocket
-Handler that handles incoming web socket connections. See the websockets guide for details.
+#### HTTP2_SETTINGS_MAX_FRAME_SIZE
 
-Redirect
-A handler that redirects to a specified location.
+最大帧大小。
 
-Trace
-A handler that handles HTTP TRACE requests, as specified by the HTTP RFC.
+#### HTTP2_SETTINGS_MAX_HEADER_LIST_SIZE
 
-Header
-A handler that sets a response header.
+服务器准备接受的标头的最大大小。
 
-IP Access Control
-A handler that allows or disallows a request based on the IP address of the remote peer.
+## Built in Handlers
 
-ACL
-A handler that allows or disallows a request based on an access control list. Any attribute of the exchange can be used as the basis of this comparison.
+Undertow包含许多提供通用功能的内置处理器。这些处理程序中的大多数都可以使用`io.undertow.Handlers`工具类上的静态方法来创建。
 
-URL Decoding
-A handler that decodes the URL and query parameters into a specified charset. It may be that different resources may require a different charset for the URL. In this case it is possible to set the Undertow listener to not decode the URL, and instead multiple instances of this handler at an appropriate point in the handler chain. For example this could allow you to have different virtual hosts use different URL encodings.
+> 下面的内容是对Undertow内建的处理器进行一些介绍，如果对它们的具体实现较为感兴趣，请查阅位于`io.undertow.server.handlers`包下的相关源码。
 
-Set Attribute
-Sets an arbitrary attribute on the exchange. Both the attribute and the value are specified as exchange attributes, so this handler can essentially be used to modify any part of the exchange. For more information see the section on exchange attributes.
+最常见的处理器的详细信息如下：
 
-Rewrite
-Handler that provides URL rewrite support.
+### Path
 
-Graceful Shutdown
-Returns a handler that can be used to make sure all running requests are finished before the server shuts down. This handler tracks running requests, and will reject new ones once shutdown has started.
+路径匹配处理程序允许你根据请求路径将请求委托给其他处理程序。它可以在精确路径上匹配，也可以在路径前缀上匹配，并将根据所选路径更新`HttpServerExchange`的相对路径。首先会根据完全匹配检查路径，如果匹配失败，则通过最长前缀匹配进行检查。
 
-Proxy Peer Address
-This handler can be used by servers that are behind a reverse proxy. It will modify the exchanges peer address and protocol to match that of the X-Forwarded-* headers that are sent by the reverse proxy. This means downstream handlers will see that actual clients peer address, rather than that of the proxy.
+### Virtual Host
 
-Request Limiting Handler
-Handler that limits the number of concurrent requests. If the number exceeds the limit requests are queued. If the queue fills up then requests are rejected.
+虚拟主机处理程序会根据`Host:`标头的内容将请求委派给其他处理程序，从而使你可以选择其他处理器链来处理不同的主机。
 
-Undertow Handler Authors Guide
-This guide provides an overview of how to write native handlers for Undertow. It does not cover every API method on the HttpServerExchange object, as many of them are self explanatory or covered by the javadoc. Instead this guide focuses on the concepts you will need to write an Undertow handler.
+### Path Template
 
-Lets start with a simple example:
+与路径处理程序类似，但是路径模板处理程序允许你在路径中使用URI模板表达式，例如`/rest /{name}`。相关路径模板项的值将作为附件存储在`HttpServerExchange`上的`io.undertow.util.PathTemplateMatch#ATTACHMENT_KEY` attachment key下。
 
+### Resource
+
+资源处理程序用于提供静态资源，例如文件。该处理程序采用一个`ResourceManager`实例，这个实例基本上是一个文件系统抽象。Undertow提供了基于文件系统和类路径的资源管理器，以及一个缓存资源管理器，缓存资源管理器包装了一个现有的资源管理器以提供内存缓存支持。
+
+### Predicate
+
+谓词（`Predicate`）处理程序根据针对`HttpServerExchange`解析的谓词值在两个可能的处理程序之间进行选择。有关更多信息，请参见[谓词指南](https://undertow.io/undertow-docs/undertow-docs-2.1.0/predicates-attributes-handlers.html)。
+
+### HTTP Continue
+
+有多个处理程序可以处理期望`HTTP 100 Continue`响应的请求。HTTP继续读取（`HTTP Continue Read`）处理程序将在处理程序首次尝试读取请求正文时自动向需要的请求发送继续响应。HTTP继续接受处理程序将立即根据谓词的值发送100或417响应。如果没有提供谓词，那么立即接受所有请求。如果发送了417响应代码，则不会调用下一个处理程序，并且该请求将变为非持久性。
+
+### Websocket
+
+处理传入的`WebSocket`连接的处理程序。有关详细信息，请参见[websockets指南](https://undertow.io/undertow-docs/undertow-docs-2.1.0/websockets.html)。
+
+### Redirect
+
+重定向到指定位置的处理程序。
+
+### Trace
+
+处理`HTTP TRACE`请求的处理程序，由`HTTP RFC`指定。
+
+### Header
+
+设置响应头的处理程序。
+
+### IP Access Control
+
+根据远程对等方的IP地址允许或拒绝请求的处理程序。
+
+### ACL
+
+根据访问控制列表允许或拒绝请求的处理程序。`HttpServerExchange`的任何属性都可以用作此比较的基础。
+
+### URL Decoding
+
+将URL和查询参数解码为指定字符集的处理程序。不同的URL资源可能需要不同的字符集，在这种情况下，可以将Undertow侦听器设置为不解码URL，而是在处理程序链中的某个适当位置使用此处理程序的多个实例进行解码。例如，这可以允许你让不同的虚拟主机使用不同的URL编码。
+
+### Set Attribute
+
+设置`HttpServerExchange`上的任意属性。属性和值都被指定为`HttpServerExchange`属性，因此该处理程序实际上可以用于修改`HttpServerExchange`的任何部分。有关更多信息，请参见[exchange attributes](https://undertow.io/undertow-docs/undertow-docs-2.1.0/predicates-attributes-handlers.html)。
+
+### Rewrite
+
+提供URL重写支持的处理程序。
+
+### Graceful Shutdown
+
+返回一个处理程序，这个处理程序可用于确保在关闭服务器之前完成所有正在运行的请求。它会跟踪运行中的请求，一旦服务器开始关闭，它将拒绝新的请求。
+
+### Proxy Peer Address
+
+此处理程序可以被反向代理后面的服务器使用。它将修改`HttpServerExchange`的对等地址和协议，以匹配反向代理发送的`X-Forwarded-*`标头。这意味着下游处理程序将看到实际客户端的对等地址，而不是代理的地址。
+
+### Request Limiting Handler
+
+限制并发请求数的处理程序。如果请求数量超出限制，那么会将请求排队。如果队列已满，则拒绝请求。
+
+## Undertow Handler Authors Guide
+
+本指南概述了如何为Undertow编写本地处理程序。它并没有涵盖`HttpServerExchange`对象上的所有API方法，因为其中许多方法都是自解释性的，或者由Javadoc解析。相反，本指南重点介绍编写Undertow处理程序所需的概念。
+
+让我们从一个简单的例子开始：
+
+```java
 import io.undertow.Undertow;
 import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
@@ -605,45 +675,49 @@ public class HelloWorldServer {
     }
 
 }
+```
+
 For the most part this is all fairly self explanatory:
 
-The Undertow Builder
+
+#### The Undertow Builder
 This API enables you to quickly configure and launch an Undertow server. It is intended for use in embedded and testing environments. At this stage the API is still subject to change.
 
-Listener Binding
+#### Listener Binding
 The next line tells the Undertow server to bind to localhost on port 8080.
 
-Default Handler
+#### Default Handler
 This is the handler that will be matched if a URL does not match any of the paths that are registered with Undertow. In this case we do not have any other handlers registered, so this handler is always invoked.
 
-Response Headers
+#### Response Headers
 This sets the content type header, which is fairly self explanatory. One thing to note is that Undertow does not use String as the key for the header map, but rather a case insensitive string io.undertow.util.HttpString. The io.undertow.util.Headers class contains predefined constants for all common headers.
 
-Response Sender
+#### Response Sender
 The Undertow sender API is just one way of sending a response. The sender will be covered in more detail later, but in this case as no completion callback has been specified the sender knows that the provided string is the complete response, and as such will set a content length header for us and close the response when done.
 
 From now on our code examples will focus on the handlers themselves, and not on the code to setup a server.
 
-Request Lifecycle
+### Request Lifecycle
 (This is also covered in the Request Lifecycle document.)
 
 When a client connects to the server Undertow creates a io.undertow.server.HttpServerConnection. When the client sends a request it is parsed by the Undertow parser, and then the resulting io.undertow.server.HttpServerExchange is passed to the root handler. When the root handler finishes one of 4 things can happen:
 
-The exchange can be already completed
+#### The exchange can be already completed
 An exchange is considered complete if both request and response channels have been fully read/written. For requests with no content (such as GET and HEAD) the request side is automatically considered fully read. The read side is considered complete when a handler has written out the full response and closed and fully flushed the response channel. If an exchange is already complete then no action is taken, as the exchange is finished.
 
-The root handler returns normally without completing the exchange
+#### The root handler returns normally without completing the exchange
 In this case the exchange will be completed by calling HttpServerExchange.endExchange(). The semantics of endExchange() are discussed later.
 
-The root handler returns with an Exception
+#### The root handler returns with an Exception
 In this case a response code of 500 will be set, and the exchange will be ended using HttpServerExchange.endExchange().
 
-The root handler can return after HttpServerExchange.dispatch() has been called, or after async IO has been started
+#### The root handler can return after HttpServerExchange.dispatch() has been called, or after async IO has been started
 In this case the dispatched task will be submitted to the dispatch executor, or if async IO has been started on either the request or response channels then this will be started. In this case the exchange will not be finished, it is up to your async task to finish the exchange when it is done processing.
 
 By far the most common use of HttpServerExchange.dispatch() is to move execution from an IO thread where blocking is not allowed into a worker thread, which does allow for blocking operations. This pattern generally looks like:
 
-Dispatching to a worker thread
+*Dispatching to a worker thread*
+```java
 public void handleRequest(final HttpServerExchange exchange) throws Exception {
     if (exchange.isInIoThread()) {
       exchange.dispatch(this);
@@ -651,19 +725,21 @@ public void handleRequest(final HttpServerExchange exchange) throws Exception {
     }
     //handler code
 }
+```
+
 Because exchange is not actually dispatched until the call stack returns you can be sure that more that one thread is never active in an exchange at once. The exchange is not thread safe, however it can be passed between multiple threads as long as both threads do not attempt to modify it at once, and there is a happens before action (such as a thread pool dispatch) in between the first and second thread access.
 
-Ending the exchange
+### Ending the exchange
 As mentioned above, and exchange is considered done once both the request and response channels have been closed and flushed.
 
 There are two ways to end an exchange, either by fully reading the request channel, and calling shutdownWrites() on the response channel and then flushing it, or by calling HttpServerExchange.endExchange(). When endExchange() is called Undertow will check if and content has been generated yet, if it has then it will simply drain the request channel, and close and flush the response channel. If not and there are any default response listeners registered on the exchange then Undertow will give each of them a chance to generate a default response. This mechanism is how default error pages are generated.
 
-The Undertow Buffer Pool
+### The Undertow Buffer Pool
 As Undertow is based on NIO it uses java.nio.ByteBuffer whenever buffering is needed. These buffers are pooled, and should not be allocated on demand as this will severely impact performance. The buffer pool can be obtained by calling HttpServerConnection.getBufferPool().
 
 Pooled buffers must be freed after use, as they will not be cleaned up by the garbage collector. The size of the buffers in the pool is configured when the server is created. Empirical testing has shown that if direct buffers are being used 16kb buffers are optimal if maximum performance is required (as this corresponds to the default socket buffer size on Linux).
 
-Non-blocking IO
+### Non-blocking IO
 By default Undertow uses non-blocking XNIO channels, and requests initially start off in an XNIO IO thread. These channels can be used directly to send and receive data. These channels are quite low level however, so to that end, Undertow provides some abstractions to make using them a little bit easier.
 
 The easiest way to send a response using non-blocking IO is to use the sender API as shown above. It contains several versions of the send() method for both byte and String data. Some versions of the method take a callback that is invoked when the send is complete, other versions do not take a callback and instead end the exchange when the send is complete.
@@ -674,7 +750,7 @@ When using versions of the send() method that do not take a callback the Content
 
 The sender API also supports blocking IO, if the exchange has been put into blocking mode by invoking HttpServerExchange.startBlocking() then the Sender will send its data using the exchanges output stream.
 
-Blocking IO
+### Blocking IO
 Undertow provides full support for blocking IO. It is not advisable to use blocking IO in an XNIO worker thread, so you will need to make sure that the request has been dispatched to a worker thread pool before attempting to read or write.
 
 The code to dispatch to a worker thread can be found above.
@@ -685,17 +761,17 @@ Once the exchange has been put into blocking mode you can now call HttpServerExc
 
 By default Undertow uses buffering streams, using buffers taken from the buffer pool. If a response is small enough to fit in the buffer then a Content-Length header will automatically be set.
 
-Headers
+### Headers
 Request and response headers are accessible through the HttpServerExchange.getRequestHeaders() and HttpServerExchange.getResponseHeaders() methods. These methods return a HeaderMap, an optimised map implementation.
 
 Headers are written out with the HTTP response header when the first data is written to the underlying channel (this may not be the same time as the first time data is written if buffering is used).
 
 If you wish to force the headers to be written you can call the flush() method on either the response channel or stream.
 
-HTTP Upgrade
+### HTTP Upgrade
 In order to perform a HTTP upgrade you can call HttpServerExchange.upgradeChannel(ExchangeCompletionListener upgradeCompleteListener), the response code will be set to 101, and once the exchange is complete your listener will be notified. Your handler is responsible for setting any appropriate headers that the upgrade client will be expecting.
 
-Undertow Request Lifecycle
+## Undertow Request Lifecycle
 This document covers the lifecycle of a web request from the point of view of the Undertow server.
 
 When a connection is established XNIO invokes the io.undertow.server.HttpOpenListener, this listener creates a new io.undertow.server.HttpServerConnection to hold state associated with this connection, and then invokes io.undertow.server.HttpReadListener.
@@ -723,7 +799,7 @@ The call stack can return without the exchange being dispatched. If this happens
 
 An exception can be thrown. If this propagates all the way up the call stack the exchange will be ended with a 500 response code.
 
-Error Handling
+## Error Handling
 Error handling is accomplished through the use of default response listeners. These are listeners that can generate a response if the exchange is ended without a response being sent.
 
 This is completely different to Servlet error handling. Servlet error handling is implemented as part of Undertow Servlet, and follows the standard Servlet rules.
@@ -789,7 +865,8 @@ public class SimpleErrorPageHandler implements HttpHandler {
         next.handleRequest(exchange);
     }
 }
-Security
+
+## Security
 Undertow has a flexible security architecture that provides several built in authentication mechanisms, as well as providing an API to allow you to provide custom mechanisms. Mechanisms can be combined (as much as the relevant specifications allow). This document covers the details of the core Undertow security API. For details on how these are used in servlet deployments see Servlet Security.
 
 The SecurityContext
@@ -856,7 +933,8 @@ If the request is NOT_AUTHENTICATED then either authentication failed or a mecha
 
 If the list of mechanisms was exhausted then the previously set authentication constraint needs to be checked, if authentication was not required then the request can proceed to the next handler in the chain and that will be then of authentication for this request (unless a later handler mandates authentication and requests authentication is re-attempted). If however authentication was required then as with a NOT_AUTHENTICATED response each mechanism has sendChallenge called in turn to generate an authentication challenge to send to the client.
 
-Predicates Attributes and Handlers
+## Predicates Attributes and Handlers
+
 Introduction
 Predicates and Exchange attributes are an abstraction that allow handlers to read, write and make decisions based on certain attributes of a request without hard coding this into the handler. These form the basis of Undertow’s text based handler configuration format. Some examples are shown below:
 
