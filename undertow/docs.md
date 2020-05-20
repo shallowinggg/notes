@@ -342,7 +342,7 @@ public interface HttpHandler {
 }
 ```
 
-处理器们一般通过在构造时显式指定下一个处理器的方式链接在一起，其中并没有流水线的概念，这意味着处理器可以根据当前请求选择下一个处理器调用。一个典型的处理程序可能看起来像这样：
+处理器们一般通过在构造时显式指定下一个处理器的方式链接在一起，其中并没有流水线的概念，这意味着处理器可以根据当前请求选择下一个处理器调用。一个典型的处理器可能看起来像这样：
 
 ```java
 public class SetHeaderHandler implements HttpHandler {
@@ -497,11 +497,11 @@ io.undertow.server.protocol.http.AlpnOpenListener
 io.undertow.server.protocol.http.HttpOpenListener
 ```
 
-HTTP监听器是最常用的侦听器类型，可以处理`HTTP/1.0`和`HTTP/1.1`。它仅需要一个附加选项：
+HTTP监听器是最常用的监听器类型，可以处理`HTTP/1.0`和`HTTP/1.1`。它仅需要一个附加选项：
 
 #### ENABLE_HTTP2
 
-如果为`true`，则可以将该连接作为`HTTP/2` prior knowledge连接进行处理。如果`HTTP/2`客户端使用`HTTP/2`连接前言直接连接到侦听器，那么将使用`HTTP/2`协议代替`HTTP/1.1`。
+如果为`true`，则可以将该连接作为`HTTP/2` prior knowledge连接进行处理。如果`HTTP/2`客户端使用`HTTP/2`连接前言直接连接到监听器，那么将使用`HTTP/2`协议代替`HTTP/1.1`。
 
 ### AJP Listener
 
@@ -509,9 +509,9 @@ HTTP监听器是最常用的侦听器类型，可以处理`HTTP/1.0`和`HTTP/1.1
 io.undertow.server.protocol.ajp.AjpOpenListener
 ```
 
-`AJP`侦听器允许使用`AJP`协议，如Apache的`mod_jk`和`mod_proxy_ajp`模块所使用的那样。它是一种二进制协议，比HTTP协议更有效，因为某些通用字符串已被整数替换。如果前端负载均衡器支持`HTTP2`，则建议改用`HTTP2`，因为它既是标准协议，同时效率更高。
+`AJP`监听器允许使用`AJP`协议，如Apache的`mod_jk`和`mod_proxy_ajp`模块所使用的那样。它是一种二进制协议，比HTTP协议更有效，因为某些通用字符串已被整数替换。如果前端负载均衡器支持`HTTP2`，则建议改用`HTTP2`，因为它既是标准协议，同时效率更高。
 
-该侦听器有一个特定选项：
+该监听器有一个特定选项：
 
 #### MAX_AJP_PACKET_SIZE
 
@@ -533,9 +533,9 @@ io.undertow.server.protocol.ajp.AjpOpenListener
 
 客户端在初始请求中发送`Upgrade: h2c`标头。如果服务器接受升级，那么将启动`HTTP/2`连接，并使用`HTTP/2`将响应发送回初始请求。
 
-根据使用`HTTP/2`的方式，侦听器的设置略有不同。
+根据使用`HTTP/2`的方式，监听器的设置略有不同。
 
-如果你使用的是Undertow构建器，则只需调用`setServerOption(ENABLE_HTTP2, true)`方法，此时会自动为所有`HTTP`和`HTTPS`侦听器添加`HTTP/2`支持。
+如果你使用的是Undertow构建器，则只需调用`setServerOption(ENABLE_HTTP2, true)`方法，此时会自动为所有`HTTP`和`HTTPS`监听器添加`HTTP/2`支持。
 
 如果你正在使用JDK8，那么Undertow将使用`ALPN`基于反射的实现，这个实现应与`OpenJDK / Oracle JDK`一起使用。如果你正在使用`JDK9+`，那么Undertow将使用JDK提供的`ALPN`实现。
 
@@ -569,7 +569,7 @@ io.undertow.server.protocol.ajp.AjpOpenListener
 
 ## Built in Handlers
 
-Undertow包含许多提供通用功能的内置处理器。这些处理程序中的大多数都可以使用`io.undertow.Handlers`工具类上的静态方法来创建。
+Undertow包含许多提供通用功能的内置处理器。这些处理器中的大多数都可以使用`io.undertow.Handlers`工具类上的静态方法来创建。
 
 > 下面的内容是对Undertow内建的处理器进行一些介绍，如果对它们的具体实现较为感兴趣，请查阅位于`io.undertow.server.handlers`包下的相关源码。
 
@@ -577,79 +577,79 @@ Undertow包含许多提供通用功能的内置处理器。这些处理程序中
 
 ### Path
 
-路径匹配处理程序允许你根据请求路径将请求委托给其他处理程序。它可以在精确路径上匹配，也可以在路径前缀上匹配，并将根据所选路径更新`HttpServerExchange`的相对路径。首先会根据完全匹配检查路径，如果匹配失败，则通过最长前缀匹配进行检查。
+路径匹配处理器允许你根据请求路径将请求委托给其他处理器。它可以在精确路径上匹配，也可以在路径前缀上匹配，并将根据所选路径更新`HttpServerExchange`的相对路径。首先会根据完全匹配检查路径，如果匹配失败，则通过最长前缀匹配进行检查。
 
 ### Virtual Host
 
-虚拟主机处理程序会根据`Host:`标头的内容将请求委派给其他处理程序，从而使你可以选择其他处理器链来处理不同的主机。
+虚拟主机处理器会根据`Host:`标头的内容将请求委派给其他处理器，从而使你可以选择其他处理器链来处理不同的主机。
 
 ### Path Template
 
-与路径处理程序类似，但是路径模板处理程序允许你在路径中使用URI模板表达式，例如`/rest /{name}`。相关路径模板项的值将作为附件存储在`HttpServerExchange`上的`io.undertow.util.PathTemplateMatch#ATTACHMENT_KEY` attachment key下。
+与路径处理器类似，但是路径模板处理器允许你在路径中使用URI模板表达式，例如`/rest/{name}`。相关路径模板项的值将作为附件存储在`HttpServerExchange`上的`io.undertow.util.PathTemplateMatch#ATTACHMENT_KEY` attachment key下。
 
 ### Resource
 
-资源处理程序用于提供静态资源，例如文件。该处理程序采用一个`ResourceManager`实例，这个实例基本上是一个文件系统抽象。Undertow提供了基于文件系统和类路径的资源管理器，以及一个缓存资源管理器，缓存资源管理器包装了一个现有的资源管理器以提供内存缓存支持。
+资源处理器用于提供静态资源，例如文件。该处理器采用一个`ResourceManager`实例，这个实例基本上是一个文件系统抽象。Undertow提供了基于文件系统和类路径的资源管理器，以及一个缓存资源管理器，缓存资源管理器包装了一个现有的资源管理器以提供内存缓存支持。
 
 ### Predicate
 
-谓词（`Predicate`）处理程序根据针对`HttpServerExchange`解析的谓词值在两个可能的处理程序之间进行选择。有关更多信息，请参见[谓词指南](https://undertow.io/undertow-docs/undertow-docs-2.1.0/predicates-attributes-handlers.html)。
+谓词（`Predicate`）处理器根据针对`HttpServerExchange`解析的谓词值在两个可能的处理器之间进行选择。有关更多信息，请参见[谓词指南](https://undertow.io/undertow-docs/undertow-docs-2.1.0/predicates-attributes-handlers.html)。
 
 ### HTTP Continue
 
-有多个处理程序可以处理期望`HTTP 100 Continue`响应的请求。HTTP继续读取（`HTTP Continue Read`）处理程序将在处理程序首次尝试读取请求正文时自动向需要的请求发送继续响应。HTTP继续接受处理程序将立即根据谓词的值发送100或417响应。如果没有提供谓词，那么立即接受所有请求。如果发送了417响应代码，则不会调用下一个处理程序，并且该请求将变为非持久性。
+有多个处理器可以处理期望`HTTP 100 Continue`响应的请求。HTTP继续读取（`HTTP Continue Read`）处理器将在处理器首次尝试读取请求正文时自动向需要的请求发送继续响应。HTTP继续接受处理器将立即根据谓词的值发送100或417响应。如果没有提供谓词，那么立即接受所有请求。如果发送了417响应代码，则不会调用下一个处理器，并且该请求将变为非持久性。
 
 ### Websocket
 
-处理传入的`WebSocket`连接的处理程序。有关详细信息，请参见[websockets指南](https://undertow.io/undertow-docs/undertow-docs-2.1.0/websockets.html)。
+处理传入的`WebSocket`连接的处理器。有关详细信息，请参见[websockets指南](https://undertow.io/undertow-docs/undertow-docs-2.1.0/websockets.html)。
 
 ### Redirect
 
-重定向到指定位置的处理程序。
+重定向到指定位置的处理器。
 
 ### Trace
 
-处理`HTTP TRACE`请求的处理程序，由`HTTP RFC`指定。
+处理`HTTP TRACE`请求的处理器，由`HTTP RFC`指定。
 
 ### Header
 
-设置响应头的处理程序。
+设置响应头的处理器。
 
 ### IP Access Control
 
-根据远程对等方的IP地址允许或拒绝请求的处理程序。
+根据远程对等方的IP地址允许或拒绝请求的处理器。
 
 ### ACL
 
-根据访问控制列表允许或拒绝请求的处理程序。`HttpServerExchange`的任何属性都可以用作此比较的基础。
+根据访问控制列表允许或拒绝请求的处理器。`HttpServerExchange`的任何属性都可以用作此比较的基础。
 
 ### URL Decoding
 
-将URL和查询参数解码为指定字符集的处理程序。不同的URL资源可能需要不同的字符集，在这种情况下，可以将Undertow侦听器设置为不解码URL，而是在处理程序链中的某个适当位置使用此处理程序的多个实例进行解码。例如，这可以允许你让不同的虚拟主机使用不同的URL编码。
+将URL和查询参数解码为指定字符集的处理器。不同的URL资源可能需要不同的字符集，在这种情况下，可以将Undertow监听器设置为不解码URL，而是在处理器链中的某个适当位置使用此处理器的多个实例进行解码。例如，这可以允许你让不同的虚拟主机使用不同的URL编码。
 
 ### Set Attribute
 
-设置`HttpServerExchange`上的任意属性。属性和值都被指定为`HttpServerExchange`属性，因此该处理程序实际上可以用于修改`HttpServerExchange`的任何部分。有关更多信息，请参见[exchange attributes](https://undertow.io/undertow-docs/undertow-docs-2.1.0/predicates-attributes-handlers.html)。
+设置`HttpServerExchange`上的任意属性。属性和值都被指定为`HttpServerExchange`属性，因此该处理器实际上可以用于修改`HttpServerExchange`的任何部分。有关更多信息，请参见[exchange attributes](https://undertow.io/undertow-docs/undertow-docs-2.1.0/predicates-attributes-handlers.html)。
 
 ### Rewrite
 
-提供URL重写支持的处理程序。
+提供URL重写支持的处理器。
 
 ### Graceful Shutdown
 
-返回一个处理程序，这个处理程序可用于确保在关闭服务器之前完成所有正在运行的请求。它会跟踪运行中的请求，一旦服务器开始关闭，它将拒绝新的请求。
+返回一个处理器，这个处理器可用于确保在关闭服务器之前完成所有正在运行的请求。它会跟踪运行中的请求，一旦服务器开始关闭，它将拒绝新的请求。
 
 ### Proxy Peer Address
 
-此处理程序可以被反向代理后面的服务器使用。它将修改`HttpServerExchange`的对等地址和协议，以匹配反向代理发送的`X-Forwarded-*`标头。这意味着下游处理程序将看到实际客户端的对等地址，而不是代理的地址。
+此处理器可以被反向代理后面的服务器使用。它将修改`HttpServerExchange`的对等地址和协议，以匹配反向代理发送的`X-Forwarded-*`标头。这意味着下游处理器将看到实际客户端的对等地址，而不是代理的地址。
 
 ### Request Limiting Handler
 
-限制并发请求数的处理程序。如果请求数量超出限制，那么会将请求排队。如果队列已满，则拒绝请求。
+限制并发请求数的处理器。如果请求数量超出限制，那么会将请求排队。如果队列已满，则拒绝请求。
 
 ## Undertow Handler Authors Guide
 
-本指南概述了如何为Undertow编写本地处理程序。它并没有涵盖`HttpServerExchange`对象上的所有API方法，因为其中许多方法都是自解释性的，或者由Javadoc解析。相反，本指南重点介绍编写Undertow处理程序所需的概念。
+本指南概述了如何为Undertow编写本地处理器。它并没有涵盖`HttpServerExchange`对象上的所有API方法，因为其中许多方法都是自解释性的，或者由Javadoc解析。相反，本指南重点介绍编写Undertow处理器所需的概念。
 
 让我们从一个简单的例子开始：
 
@@ -677,44 +677,53 @@ public class HelloWorldServer {
 }
 ```
 
-For the most part this is all fairly self explanatory:
-
+在大多数情况下，上面的代码是自解释的，因此很容易理解：
 
 #### The Undertow Builder
-This API enables you to quickly configure and launch an Undertow server. It is intended for use in embedded and testing environments. At this stage the API is still subject to change.
+
+使用`Buidler` API，你可以快速配置和启动Undertow服务器，它旨在用于嵌入式和测试环境。`Builder`类的API可能会在未来继续演进更改。
 
 #### Listener Binding
-The next line tells the Undertow server to bind to localhost on port 8080.
+
+下一行告诉Undertow服务器在端口`8080`上绑定到`localhost`。
 
 #### Default Handler
-This is the handler that will be matched if a URL does not match any of the paths that are registered with Undertow. In this case we do not have any other handlers registered, so this handler is always invoked.
+
+如果`URL`与在Undertow中注册的任何路径都不匹配，那么将使用这个默认处理器。在上面的例子中，我们没有注册任何其他处理器，因此始终会调用此处理器。
 
 #### Response Headers
-This sets the content type header, which is fairly self explanatory. One thing to note is that Undertow does not use String as the key for the header map, but rather a case insensitive string io.undertow.util.HttpString. The io.undertow.util.Headers class contains predefined constants for all common headers.
+
+设置`Content-Type`标头，这很容易理解。要注意的一件事是，Undertow并不使用`String`作为标头表的键，而是一个不区分大小写的字符串`io.undertow.util.HttpString`。`io.undertow.util.Headers`类中预定义了所有常用的标头。
 
 #### Response Sender
-The Undertow sender API is just one way of sending a response. The sender will be covered in more detail later, but in this case as no completion callback has been specified the sender knows that the provided string is the complete response, and as such will set a content length header for us and close the response when done.
 
-From now on our code examples will focus on the handlers themselves, and not on the code to setup a server.
+Undertow `Sender API`只是发送响应的一种方式。稍后将详细介绍`Sender`，在上面的例子中，由于未指定完成回调，所以`Sender`知道提供的字符串是完整的响应，因此将为我们设置内容长度标头并在完成后关闭响应。
+
+从现在开始，我们的代码示例将专注于处理器本身，而不是用于设置服务器的代码。
 
 ### Request Lifecycle
-(This is also covered in the Request Lifecycle document.)
 
-When a client connects to the server Undertow creates a io.undertow.server.HttpServerConnection. When the client sends a request it is parsed by the Undertow parser, and then the resulting io.undertow.server.HttpServerExchange is passed to the root handler. When the root handler finishes one of 4 things can happen:
+（这也包含在[“请求生命周期”](https://undertow.io/undertow-docs/undertow-docs-2.1.0/undertow-request-lifecycle.html)文档中。）
+
+当客户端连接到服务器时，Undertow创建一个`io.undertow.server.HttpServerConnection`。客户端发送请求时，它由Undertow解析器解析，然后将结果`io.undertow.server.HttpServerExchange`传递到根处理器。当根处理器完成时，可能会发生以下四种情况之一：
 
 #### The exchange can be already completed
-An exchange is considered complete if both request and response channels have been fully read/written. For requests with no content (such as GET and HEAD) the request side is automatically considered fully read. The read side is considered complete when a handler has written out the full response and closed and fully flushed the response channel. If an exchange is already complete then no action is taken, as the exchange is finished.
+
+如果请求和响应通道均已完全读取/写入，则认为交换（`HttpServerExchange`）已完成。对于没有内容的请求（例如`GET`和`HEAD`），请求侧将自动视为已完全读取。当处理器已写出完整的响应并关闭以及完全刷新响应通道时，则认为响应侧已完成。如果交换已经完成，那么之后将不会采取任何措施，因为交换已经结束。
 
 #### The root handler returns normally without completing the exchange
-In this case the exchange will be completed by calling HttpServerExchange.endExchange(). The semantics of endExchange() are discussed later.
+
+在这种情况下，可以通过`HttpServerExchange.endExchange()`方法完成`exchange`。`endExchange()`的语义将在后面讨论。
 
 #### The root handler returns with an Exception
-In this case a response code of 500 will be set, and the exchange will be ended using HttpServerExchange.endExchange().
+
+在这种情况下，将设置响应码`500`，并调用`HttpServerExchange.endExchange()`方法结束`exchange`。
 
 #### The root handler can return after HttpServerExchange.dispatch() has been called, or after async IO has been started
-In this case the dispatched task will be submitted to the dispatch executor, or if async IO has been started on either the request or response channels then this will be started. In this case the exchange will not be finished, it is up to your async task to finish the exchange when it is done processing.
 
-By far the most common use of HttpServerExchange.dispatch() is to move execution from an IO thread where blocking is not allowed into a worker thread, which does allow for blocking operations. This pattern generally looks like:
+在这种情况下，被分派的任务将被提交到分派执行器中执行，或者如果已在请求或响应通道上启动了异步IO，则将启动该任务。此时`exchange`将不会处于完成状态，而是当异步任务完成后判断是否完成。
+
+到目前为止，`HttpServerExchange.dispatch()`最常见的用法是将任务执行从一个不允许阻塞的IO线程转移到一个允许阻塞操作的工作线程中。通常如下所示：
 
 *Dispatching to a worker thread*
 ```java
@@ -727,65 +736,75 @@ public void handleRequest(final HttpServerExchange exchange) throws Exception {
 }
 ```
 
-Because exchange is not actually dispatched until the call stack returns you can be sure that more that one thread is never active in an exchange at once. The exchange is not thread safe, however it can be passed between multiple threads as long as both threads do not attempt to modify it at once, and there is a happens before action (such as a thread pool dispatch) in between the first and second thread access.
+因为直到调用堆栈返回才真正调度`HttpServerExchange`，所以你可以确定永远不会在一个`HttpServerExchange`上有多个线程处于活动状态。`HttpServerExchange`不是线程安全的，但是可以在多个线程之间传递，只要两个线程不要立即尝试对其进行修改，并且在第一个和第二个线程访问操作之间存在一个`happens before`操作（例如线程池分派）。
+
+> 原文：Because exchange is not actually dispatched until the call stack returns you can be sure that more that one thread is never active in an exchange at once. The exchange is not thread safe, however it can be passed between multiple threads as long as both threads do not attempt to modify it at once, and there is a happens before action (such as a thread pool dispatch) in between the first and second thread access.
 
 ### Ending the exchange
-As mentioned above, and exchange is considered done once both the request and response channels have been closed and flushed.
 
-There are two ways to end an exchange, either by fully reading the request channel, and calling shutdownWrites() on the response channel and then flushing it, or by calling HttpServerExchange.endExchange(). When endExchange() is called Undertow will check if and content has been generated yet, if it has then it will simply drain the request channel, and close and flush the response channel. If not and there are any default response listeners registered on the exchange then Undertow will give each of them a chance to generate a default response. This mechanism is how default error pages are generated.
+如上所述，一旦请求和响应通道都被关闭和刷新，`exchange`就被认为已经完成。
+
+有两种方法可以结束一个`exchange`，第一种方法是完全读取请求通道，然后在响应通道上调用`shutdownWrites()`并刷新通道，第二种方法则是调用`HttpServerExchange.endExchange()`。当`endExchange()`调用时，Undertow将检查是否已生成响应内容，如果已生成，则将仅清空请求通道，并关闭以及刷新响应通道。如果没有，并且有任何默认响应监听器注册到了`exchange`上，那么Undertow将为每个监听器提供一个生成默认响应的机会。这个机制一般是用来生成默认错误页面的。
 
 ### The Undertow Buffer Pool
-As Undertow is based on NIO it uses java.nio.ByteBuffer whenever buffering is needed. These buffers are pooled, and should not be allocated on demand as this will severely impact performance. The buffer pool can be obtained by calling HttpServerConnection.getBufferPool().
 
-Pooled buffers must be freed after use, as they will not be cleaned up by the garbage collector. The size of the buffers in the pool is configured when the server is created. Empirical testing has shown that if direct buffers are being used 16kb buffers are optimal if maximum performance is required (as this corresponds to the default socket buffer size on Linux).
+由于Undertow基于`NIO`，因此在需要缓冲时会使用`java.nio.ByteBuffer`。这些缓冲区是池化的，不应按需分配，因为这会严重影响性能。可以调用`HttpServerConnection.getBufferPool()`方法获取缓冲池。
+
+池化缓冲池使用后必须释放，因为它们不会被垃圾收集器清除。在创建服务器时会配置缓冲池中缓冲区的大小。经验测试表明，如果使用直接缓冲区，在需要最大性能的情况下使用16kb大小的缓冲区是最佳的（因为这对应`Linux`上的默认套接字缓冲区大小）。
 
 ### Non-blocking IO
-By default Undertow uses non-blocking XNIO channels, and requests initially start off in an XNIO IO thread. These channels can be used directly to send and receive data. These channels are quite low level however, so to that end, Undertow provides some abstractions to make using them a little bit easier.
 
-The easiest way to send a response using non-blocking IO is to use the sender API as shown above. It contains several versions of the send() method for both byte and String data. Some versions of the method take a callback that is invoked when the send is complete, other versions do not take a callback and instead end the exchange when the send is complete.
+默认情况下，Undertow使用非阻塞`XNIO`通道，并且请求最初在`XNIO IO`线程中启动。这些通道可以直接用于发送和接收数据。这些通道的级别很低，因此，Undertow提供了一些抽象方法，使得它们更加容易使用。
 
-Note that the sender API does not support queuing, you may not call send() again until after the callback has been notified.
+使用非阻塞IO发送响应的最简单方法是使用上个例子中展示的`Sender` API。它包含`send()`方法的多个重载版本，用于发送`byte`和`String`数据。该方法的某些版本可以接受回调，在发送完成时调用，而其他不接受回调的版本在发送完成后结束`exchange`。
 
-When using versions of the send() method that do not take a callback the Content-Length header will be automatically set, otherwise you must set this yourself to avoid using chunked encoding.
+请注意，`Sender` API不支持排队，直到回调被通知之后，你才可以再次调用`send()`方法。
 
-The sender API also supports blocking IO, if the exchange has been put into blocking mode by invoking HttpServerExchange.startBlocking() then the Sender will send its data using the exchanges output stream.
+使用不接受回调的`send()`方法版本时，将自动设置`Content-Length`标头，否则，你必须自己进行设置以避免使用分块编码。
+
+`Sender` API还支持阻塞IO，如果调用了`HttpServerExchange.startBlocking()`方法将`exchange`置为阻塞模式，那么`Sender`将使用`exchange`输出流发送其数据。
 
 ### Blocking IO
-Undertow provides full support for blocking IO. It is not advisable to use blocking IO in an XNIO worker thread, so you will need to make sure that the request has been dispatched to a worker thread pool before attempting to read or write.
 
-The code to dispatch to a worker thread can be found above.
+Undertow为阻塞IO提供了全面的支持。我们不建议在`XNIO`工作线程中使用阻塞IO，因此在尝试读取或写入之前，你需要确保已将请求分派到一个工作线程池中。
 
-To begin blocking IO call HttpServerExchange.startBlocking(). There are two versions of this method, the one which does not take any parameters which will use Undertow’s default stream implementations, and HttpServerExchange.startBlocking(BlockingHttpServerExchange blockingExchange) which allows you to customize the streams that are in use. For example the servlet implementation uses the second method to replace Undertow’s default streams with Servlet(Input/Output)Stream implementations.
+在之前（`Dispatching to a worker thread`）已经介绍过如何将请求分派给工作线程。
 
-Once the exchange has been put into blocking mode you can now call HttpServerExchange.getInputStream() and HttpServerExchange.getOutputStream(), and write data to them as normal. You can also still use the sender API described above, however in this case the sender implementation will use blocking IO.
+要使用阻塞IO，你需要调用`HttpServerExchange.startBlocking()`方法。此方法有两种版本，一种不接受任何参数，它将使用Undertow的默认流实现，而另一个版本`HttpServerExchange.startBlocking(BlockingHttpServerExchange blockingExchange)`允许你自定义要使用的流。例如，`Servlet`实现采取第二种方法，使用`Servlet(Input/Output）Stream`实现替换Undertow的默认流。
 
-By default Undertow uses buffering streams, using buffers taken from the buffer pool. If a response is small enough to fit in the buffer then a Content-Length header will automatically be set.
+将`exchange`置为阻塞模式后，你可以调用`HttpServerExchange.getInputStream()`和`HttpServerExchange.getOutputStream()`两个方法，并像往常一样读取或写入数据。此时你仍然可以使用之前介绍过的`Sender` API，但是在这种情况下将使用阻塞IO。
+
+默认情况下，Undertow使用缓冲流，并使用从缓冲池中提取的缓冲区。如果响应内容足够小，即缓冲区能够容纳，那么将自动设置`Content-Length`标头。
 
 ### Headers
-Request and response headers are accessible through the HttpServerExchange.getRequestHeaders() and HttpServerExchange.getResponseHeaders() methods. These methods return a HeaderMap, an optimised map implementation.
 
-Headers are written out with the HTTP response header when the first data is written to the underlying channel (this may not be the same time as the first time data is written if buffering is used).
+可以通过`HttpServerExchange.getRequestHeaders()`和`HttpServerExchange.getResponseHeaders()`方法访问请求头和响应头。这两个方法将返回一个`HeaderMap`类实例，它是优化过的`Map`实现。
 
-If you wish to force the headers to be written you can call the flush() method on either the response channel or stream.
+当第一个数据写入底层通道时，标头将会随着HTTP响应写入（如果使用缓冲，则此时间可能与第一次写入数据的时间不同）。
+
+如果希望强制写入标头，则可以在响应通道或流上调用`flush()`方法。
 
 ### HTTP Upgrade
-In order to perform a HTTP upgrade you can call HttpServerExchange.upgradeChannel(ExchangeCompletionListener upgradeCompleteListener), the response code will be set to 101, and once the exchange is complete your listener will be notified. Your handler is responsible for setting any appropriate headers that the upgrade client will be expecting.
+
+为了进行HTTP升级，你可以调用`HttpServerExchange.upgradeChannel(ExchangeCompletionListener upgradeCompleteListener)`方法，响应代码将设置为101，一旦`exchange`完成，监听器就会收到通知。你的处理器负责设置升级客户端期望的任何适当的标头。
 
 ## Undertow Request Lifecycle
-This document covers the lifecycle of a web request from the point of view of the Undertow server.
 
-When a connection is established XNIO invokes the io.undertow.server.HttpOpenListener, this listener creates a new io.undertow.server.HttpServerConnection to hold state associated with this connection, and then invokes io.undertow.server.HttpReadListener.
+本文档将从Undertow服务器的角度介绍Web请求的生命周期。
 
-The HTTP read listener is responsible for parsing the incoming request, and creating a new io.undertow.server.HttpServerExchange to store the request state. The exchange object contains both the request and response state.
+建立连接后，`XNIO`将调用`io.undertow.server.HttpOpenListener`，此监听器会创建一个`io.undertow.server.HttpServerConnection`实例以存储与此连接关联的状态，然后调用`io.undertow.server.HttpReadListener`。
 
-At this point the request and response channel wrappers are setup, that are responsible for decoding and encoding the request and response data.
+`HttpReadListener`负责解析传入的请求，并创建一个`io.undertow.server.HttpServerExchange`实例来存储请求状态。`HttpServerExchange`对象会同时包含请求和响应状态。
 
-The root handler is then executed via io.undertow.server.Connectors#executeRootHandler. Handlers are chained together, and each handler can modify the exchange, send a response, or delegate to a different handler. At this point there are a few different things that can happen:
+此时将构造请求和响应通道包装器，它们负责对请求和响应数据进行解码和编码。
 
-The exchange can be finished. This happens when both the request and response channels are closed. If a content length is set then the channel will automatically close once all the data has been written. This can also be forced by calling HttpServerExchange.endExchange(), and if no data has been written yet any default response listeners that have been registered with the exchange will be given the opportunity to generate a default response, such as an error page. Once the current exchange is finished the exchange completion listeners will be run. The last completion listener will generally start processing the next request on the connection, and will have been setup by the read listener.
+然后根处理器将会通过`io.undertow.server.Connectors#executeRootHandler`执行。处理器链接在一起，每个处理器都可以修改`exchange`，发送响应或委托其他处理器处理。此时，可能会发生一些不同的事情：
 
-The exchange can be dispatched by calling one of the HttpServerExchange.dispatch methods. This is similar to the servlet startAsync() method. Once the call stack returns then the dispatch task (if any) will be run in the provided executor (if no executor is provided it will be ran by the XNIO worker). The most common use of a dispatch is to move from executing in an IO thread (where blocking operations are not allowed), to a worker thread that can block. This pattern looks like:
+- `exchange`完成。当请求和响应通道都关闭时，会发生这种情况。如果设置了内容长度，一旦写入了所有数据，通道将自动关闭。也可以调用`HttpServerExchange.endExchange()`方法来强制执行此操作，如果尚未写入任何数据，将会给所有注册到此`exchange`之上的默认响应监听器一个机会生成默认响应，例如错误页面。一旦`exchange`完成，就会运行`exchange completion`监听器。最后一个`completion`监听器完成后通常将开始处理网络连接上的下一个请求，并且将由读取监听器进行设置。
 
+- 可以调用`HttpServerExchange.dispatch`方法的任意一个版本来分派`exchange`。它和`servlet startAsync()`方法相似。调用堆栈返回后，分派任务（如果有）将在给定的执行线程中运行（如果未提供执行线程，那么XNIO工作程序将运行该任务）。分派的最常见用途是将操作从IO线程（不允许执行阻塞操作）中转移到可以阻塞的工作线程。这个模式如下所示：
+
+```java
 public void handleRequest(final HttpServerExchange exchange) throws Exception {
     if (exchange.isInIoThread()) {
       exchange.dispatch(this);
@@ -793,21 +812,26 @@ public void handleRequest(final HttpServerExchange exchange) throws Exception {
     }
     //handler code
 }
-Reads/Writes can be resumed on a request or response channel. Internally this is treated like a dispatch, and once the call stack returns the relevant channel will be notified about IO events. The reason why the operation does not take effect until the call stack returns is to make sure that we never have multiple threads acting in the same exchange.
+```
 
-The call stack can return without the exchange being dispatched. If this happens HttpServerExchange.endExchange() will be called, and the request will be finished.
+- 读/写可以在请求或响应通道上恢复。在内部，这被视为分派，一旦调用堆栈返回，相关通道将收到有关IO事件的通知。该操作要等到调用堆栈返回后才能生效，这是为了确保永远不会有多个线程在同一个`exchange`中操作。
 
-An exception can be thrown. If this propagates all the way up the call stack the exchange will be ended with a 500 response code.
+- 调用堆栈可以返回而无需分派`exchange`。如果发生这种情况`HttpServerExchange.endExchange()`方法将会被调用，并且这个请求将完成。
+
+- 引发一个异常。如果异常一直传播到调用堆栈的上方，那么`exchange`将以响应代码`500`结束。
 
 ## Error Handling
-Error handling is accomplished through the use of default response listeners. These are listeners that can generate a response if the exchange is ended without a response being sent.
 
-This is completely different to Servlet error handling. Servlet error handling is implemented as part of Undertow Servlet, and follows the standard Servlet rules.
-In general there are two types of errors that we need to worry about, handlers that throw exceptions or handlers that set an error response code and then call HttpServerExchange.endExchange().
+错误处理是通过默认响应监听器完成的。如果在不发送响应的情况下`exchange`完成，那么默认响应监听器会生成一个响应。
 
-Exceptions
-The easiest way to handle exceptions is to catch them in an outer handler. For example:
+这与`Servlet`错误处理完全不同。`Servlet`错误处理被实现为`Undertow Servlet`的一部分，并遵循标准`Servlet`规则。
+通常，我们需要担心两种类型的错误：引发异常的处理器或者设置了一个错误的响应代码后调用`HttpServerExchange.endExchange()`的处理器。
 
+### Exceptions
+
+处理异常的最简单方法是在外部处理器中捕获异常。例如：
+
+```java
 public class ErrorHandler implements HttpHandler {
 
     @Override
@@ -821,19 +845,23 @@ public class ErrorHandler implements HttpHandler {
         }
     }
 }
-The allows your application to handle exceptions in whatever manner you see fit.
+```
 
-If the exception propagates out of the handler chain a 500 response code will be set and the exchange can be ended.
+这允许你的应用程序以你认为合适的方式处理异常。
 
-Default Response Listeners
-Default response listener allow you to generate a default page if the exchange is ended without a response body. These handlers should test for an error response code, and then generate an appropriate error page.
+如果异常传播到处理器链之外，那么将设置响应码`500`，并且结束`exchange`。
 
-Note that these handlers will be run for all requests that terminate with no content, but generating default content for successful requests will likely cause problems.
+### Default Response Listeners
 
-Default response listeners can be registered via the HttpServerExchange#addDefaultResponseListener(DefaultResponseListener) method. They will be called in the reverse order that they are registered, so the last handler registered is the first to be called.
+如果在没有响应体的情况下`exchange`结束，那么默认响应监听器允许你生成一个默认页面。默认响应处理器应测试错误响应码，然后生成适当的错误页面。
 
-The following example shows a handler that will generate a simple next based error page for 500 errors:
+请注意，所有没有任何响应内容就终止的请求都会被默认响应处理器处理，但是为成功的请求生成一份默认的错误内容可能会导致问题。
 
+可以通过`HttpServerExchange#addDefaultResponseListener(DefaultResponseListener)`方法注册默认响应监听器。它们将按照注册时的相反顺序被调用，因此最后注册的处理器是第一个被调用的处理器。
+
+下面的示例展示了一个处理器，它将针对响应码`500`生成一个简单的错误页面：
+
+```java
 public class SimpleErrorPageHandler implements HttpHandler {
 
     private final HttpHandler next;
@@ -865,6 +893,7 @@ public class SimpleErrorPageHandler implements HttpHandler {
         next.handleRequest(exchange);
     }
 }
+```
 
 ## Security
 Undertow has a flexible security architecture that provides several built in authentication mechanisms, as well as providing an API to allow you to provide custom mechanisms. Mechanisms can be combined (as much as the relevant specifications allow). This document covers the details of the core Undertow security API. For details on how these are used in servlet deployments see Servlet Security.
