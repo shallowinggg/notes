@@ -266,6 +266,362 @@ xnio = Xnio.getInstance(Undertow.class.getClassLoader());
 
 其中`internalWorker`通常情况下都为`true`，除非你使用`Builder`提供了一个自定义的`XnioWorker`。但是更多情况下，我们只需要对其进行一定的配置即可，因此你可以通过调用`Builder#setWorkerOption`方法来完成这个目的，而无需手动创建一个`XnioWorker`。你可以在`org.xnio.Options`类中查看具体可用的配置项。
 
+```java
+    public XnioWorker createWorker(OptionMap optionMap) throws IOException, IllegalArgumentException {
+        return createWorker(null, optionMap);
+    }
+
+    public XnioWorker createWorker(ThreadGroup threadGroup, OptionMap optionMap) throws IOException, IllegalArgumentException {
+        return createWorker(threadGroup, optionMap, null);
+    }
+
+    public XnioWorker createWorker(final ThreadGroup threadGroup, final OptionMap optionMap, final Runnable terminationTask) throws IOException, IllegalArgumentException {
+        final NioXnioWorker worker = new NioXnioWorker(this, threadGroup, optionMap, terminationTask);
+        worker.start();
+        return worker;
+    }
+
+    NioXnioWorker(final NioXnio xnio, final ThreadGroup threadGroup, final OptionMap optionMap, final Runnable terminationTask) throws IOException {
+        super(xnio, threadGroup, optionMap, terminationTask);
+        final int threadCount;
+        // 获取IO线程数
+        if (optionMap.contains(Options.WORKER_IO_THREADS)) {
+            threadCount = optionMap.get(Options.WORKER_IO_THREADS, 0);
+        } else {
+            threadCount = Math.max(optionMap.get(Options.WORKER_READ_THREADS, 1), optionMap.get(Options.WORKER_WRITE_THREADS, 1));
+        }
+        if (threadCount < 0) {
+            throw log.optionOutOfRange("WORKER_IO_THREADS");
+        }
+        final long workerStackSize = optionMap.get(Options.STACK_SIZE, 0L);
+        if (workerStackSize < 0L) {
+            throw log.optionOutOfRange("STACK_SIZE");
+
+        }
+        final String workerName = getName();
+        WorkerThread[] workerThreads;
+        workerThreads = new WorkerThread[threadCount];
+        final boolean markWorkerThreadAsDaemon = optionMap.get(Options.THREAD_DAEMON, false);
+        boolean ok = false;
+        try {
+            // 创建IO工作线程
+            for (int i = 0; i < threadCount; i++) {
+                final WorkerThread workerThread = new WorkerThread(this, xnio.mainSelectorCreator.open(), String.format("%s I/O-%d", workerName, Integer.valueOf(i + 1)), threadGroup, workerStackSize, i);
+                // Mark as daemon if the Options.THREAD_DAEMON has been set
+                if (markWorkerThreadAsDaemon) {
+                    workerThread.setDaemon(true);
+                }
+                workerThreads[i] = workerThread;
+            }
+            // 创建accpet线程
+            acceptThread = new WorkerThread(this, xnio.mainSelectorCreator.open(), String.format("%s Accept", workerName), threadGroup, workerStackSize, threadCount);
+            if (markWorkerThreadAsDaemon) {
+                acceptThread.setDaemon(true);
+            }
+            ok = true;
+        } finally {
+            if (! ok) {
+                for (WorkerThread worker : workerThreads) {
+                    if (worker != null) safeClose(worker.getSelector());
+                }
+            }
+        }
+        this.workerThreads = workerThreads;
+        // 注册MXBean
+        mbeanHandle = NioXnio.register(new XnioWorkerMXBean() {
+            public String getProviderName() {
+                return "nio";
+            }
+
+            public String getName() {
+                return workerName;
+            }
+
+            public boolean isShutdownRequested() {
+                return isShutdown();
+            }
+
+            public int getCoreWorkerPoolSize() {
+                return NioXnioWorker.this.getCoreWorkerPoolSize();
+            }
+
+            public int getMaxWorkerPoolSize() {
+                return NioXnioWorker.this.getMaxWorkerPoolSize();
+            }
+
+            public int getIoThreadCount() {
+                return threadCount;
+            }
+
+            public int getWorkerQueueSize() {
+                return NioXnioWorker.this.getWorkerQueueSize();
+            }
+        });
+    }
+
+```
+
+`XnioWorker`的总体创建过程如上所示，共分为如下几步：
+
+1. 调用`super()`
+2. 获取配置信息
+3. 创建IO线程及`accpet`线程
+4. 注册`MXBean`
+
+#### super()
+
+`NioXnioWorker`类是`XnioWorker`的具体实现类，在`XnioWorker`的构造中，也做了一些通用的准备工作，如下所示：
+
+```java
+    protected XnioWorker(final Xnio xnio, final ThreadGroup threadGroup, final OptionMap optionMap, final Runnable terminationTask) {
+        this.xnio = xnio;
+        this.terminationTask = terminationTask;
+        final SecurityManager sm = System.getSecurityManager();
+        if (sm != null) {
+            sm.checkPermission(CREATE_WORKER_PERMISSION);
+        }
+        String workerName = optionMap.get(Options.WORKER_NAME);
+        if (workerName == null) {
+            workerName = "XNIO-" + seq.getAndIncrement();
+        }
+        name = workerName;
+        // 创建任务队列
+        taskQueue = new LinkedBlockingQueue<Runnable>();
+        // 获取核心工作线程数量
+        this.coreSize = optionMap.get(Options.WORKER_TASK_CORE_THREADS, 4);
+        // 获取工作线程是否被标记为daemon
+        final boolean markThreadAsDaemon = optionMap.get(Options.THREAD_DAEMON, false);
+        // 获取最大工作线程数量
+        final int threadCount = optionMap.get(Options.WORKER_TASK_MAX_THREADS, 16);
+        // 创建线程池
+        taskPool = new TaskPool(
+            threadCount, // ignore core threads setting, always fill to max
+            threadCount,
+            optionMap.get(Options.WORKER_TASK_KEEPALIVE, 60000), TimeUnit.MILLISECONDS,
+            taskQueue,
+            new WorkerThreadFactory(threadGroup, optionMap, markThreadAsDaemon),
+            new ThreadPoolExecutor.AbortPolicy());
+    }
+```
+
+注释中对其构造过程已经做了较为详细的描述，因此不多赘述。
+
+#### 创建IO线程及accpet线程
+
+`WorkerThread`实现了`java.util.concurrent.Executor`接口，同时`xnio`还允许它执行定时任务，它主要用于处理IO任务，例如`accpet`线程负责接受来自客户端的请求并创建连接。
+
+`WorkerThread`的构造过程非常简单，在此处唯一重要的一点是构造方法传入了一个`java.nio.channels.Selector`实例，以便每个线程都可以检测是否有IO事件发生。
+
+让我们看一下其`run()`方法的实现：
+
+```java
+    public void run() {
+        final Selector selector = this.selector;
+        try {
+            log.tracef("Starting worker thread %s", this);
+            final Object lock = workLock;
+            final Queue<Runnable> workQueue = selectorWorkQueue;
+            final TreeSet<TimeKey> delayQueue = delayWorkQueue;
+            log.debugf("Started channel thread '%s', selector %s", currentThread().getName(), selector);
+            Runnable task;
+            Iterator<TimeKey> iterator;
+            long delayTime = Long.MAX_VALUE;
+            Set<SelectionKey> selectedKeys;
+            SelectionKey[] keys = new SelectionKey[16];
+            int oldState;
+            int keyCount;
+            // 死循环，除非被关闭，否则一直运行
+            for (;;) {
+                // Run all tasks
+                do {
+                    // 需要对workQueue和delayQueue进行操作，因此需要加锁，以防其他线程提交任务
+                    synchronized (lock) {
+                        // 从工作队列中提取任务
+                        task = workQueue.poll();
+                        // 如果工作队列中没有任务，那么检查定时任务队列是否有可执行任务
+                        if (task == null) {
+                            iterator = delayQueue.iterator();
+                            delayTime = Long.MAX_VALUE;
+                            if (iterator.hasNext()) {
+                                final long now = nanoTime();
+                                do {
+                                    final TimeKey key = iterator.next();
+                                    if (key.deadline <= (now - START_TIME)) {
+                                        workQueue.add(key.command);
+                                        iterator.remove();
+                                    } else {
+                                        delayTime = key.deadline - (now - START_TIME);
+                                        // the rest are in the future
+                                        break;
+                                    }
+                                } while (iterator.hasNext());
+                            }
+                            task = workQueue.poll();
+                        }
+                    }
+                    // 安全执行任务，防止任务出现异常导致线程crash
+                    safeRun(task);
+                } while (task != null);
+                // all tasks have been run
+                oldState = state;
+                // 如果当前线程被关闭
+                if ((oldState & SHUTDOWN) != 0) {
+                    synchronized (lock) {
+                        keyCount = selector.keys().size();
+                        state = keyCount | SHUTDOWN;
+                        // 当前所有任务执行完成，结束线程
+                        if (keyCount == 0 && workQueue.isEmpty()) {
+                            // no keys or tasks left, shut down (delay tasks are discarded)
+                            return;
+                        }
+                    }
+                    // 获取当前所有可处理的事件
+                    synchronized (selector) {
+                        final Set<SelectionKey> keySet = selector.keys();
+                        synchronized (keySet) {
+                            keys = keySet.toArray(keys);
+                            Arrays.fill(keys, keySet.size(), keys.length, null);
+                        }
+                    }
+                    // shut em down
+                    // 处理事件，并关闭相应的通道
+                    for (int i = 0; i < keys.length; i++) {
+                        final SelectionKey key = keys[i];
+                        if (key == null) break; //end of list
+                        keys[i] = null;
+                        final NioHandle attachment = (NioHandle) key.attachment();
+                        if (attachment != null) {
+                            safeClose(key.channel());
+                            attachment.forceTermination();
+                        }
+                    }
+                    Arrays.fill(keys, 0, keys.length, null);
+                }
+                // perform select
+                // 如果当前线程状态正常，执行select操作
+                try {
+                    // 再次检测线程状态，如果为SHUTDOWN，那么只执行一次selectNow()
+                    if ((oldState & SHUTDOWN) != 0) {
+                        selectorLog.tracef("Beginning select on %s (shutdown in progress)", selector);
+                        selector.selectNow();
+                    } else if (delayTime == Long.MAX_VALUE) {
+                        // 当前没有定时任务
+                        selectorLog.tracef("Beginning select on %s", selector);
+                        polling = true;
+                        try {
+                            // 如果工作队列中存在任务需要处理，那么只执行一次selectNow()
+                            if (workQueue.peek() != null) {
+                                selector.selectNow();
+                            } else {
+                                // 否则执行select()，等待事件到来
+                                selector.select();
+                            }
+                        } finally {
+                            polling = false;
+                        }
+                    } else {
+                        // 如果有定时任务即将执行，那么只select指定时间
+                        final long millis = 1L + delayTime / 1000000L;
+                        selectorLog.tracef("Beginning select on %s (with timeout)", selector);
+                        polling = true;
+                        try {
+                            if (workQueue.peek() != null) {
+                                selector.selectNow();
+                            } else {
+                                selector.select(millis);
+                            }
+                        } finally {
+                            polling = false;
+                        }
+                    }
+                } catch (CancelledKeyException ignored) {
+                    // Mac and other buggy implementations sometimes spits these out
+                    selectorLog.trace("Spurious cancelled key exception");
+                } catch (IOException e) {
+                    selectorLog.selectionError(e);
+                    // hopefully transient; should never happen
+                }
+                selectorLog.tracef("Selected on %s", selector);
+                // iterate the ready key set
+                // 获取当前所有可处理事件
+                synchronized (selector) {
+                    selectedKeys = selector.selectedKeys();
+                    synchronized (selectedKeys) {
+                        // copy so that handlers can safely cancel keys
+                        keys = selectedKeys.toArray(keys);
+                        Arrays.fill(keys, selectedKeys.size(), keys.length, null);
+                        selectedKeys.clear();
+                    }
+                }
+                // 处理事件
+                for (int i = 0; i < keys.length; i++) {
+                    final SelectionKey key = keys[i];
+                    if (key == null) break; //end of list
+                    keys[i] = null;
+                    final int ops;
+                    try {
+                        ops = key.interestOps();
+                        if (ops != 0) {
+                            selectorLog.tracef("Selected key %s for %s", key, key.channel());
+                            // 获取对应的处理器，并执行
+                            final NioHandle handle = (NioHandle) key.attachment();
+                            if (handle == null) {
+                                cancelKey(key);
+                            } else {
+                                handle.handleReady(key.readyOps());
+                            }
+                        }
+                    } catch (CancelledKeyException ignored) {
+                        selectorLog.tracef("Skipping selection of cancelled key %s", key);
+                    } catch (Throwable t) {
+                        selectorLog.tracef(t, "Unexpected failure of selection of key %s", key);
+                    }
+                }
+                // all selected keys invoked; loop back to run tasks
+            }
+        } finally {
+            log.tracef("Shutting down channel thread \"%s\"", this);
+            safeClose(selector);
+            getWorker().closeResource();
+        }
+    }
+
+```
+
+上面的`run()`方法虽然代码复杂，但是逻辑总体而言比较清晰。如果你了解过`Netty`的`NioEventLoop`的实现，那么对上述代码一定会感觉非常熟悉。总结一下`WorkerThread`共干了两件事，第一个为执行提交给它的任务，注意它实现了`Executor`接口；第二个为调用`Selector#select`方法，检查IO事件并处理。
+
+注意`final NioHandle handle = (NioHandle) key.attachment();`这一句代码，在之后服务器的构造过程中，会设置相应的`attachment()`以便进行事件的处理。
+
+#### 注册MXBean
+
+最后则是注册`MXBean`，提供一个监视`xnio`内部情况的途径。
+
+```java
+    protected static Closeable register(XnioWorkerMXBean workerMXBean) {
+        return Xnio.register(workerMXBean);
+    }
+
+        protected static Closeable register(XnioWorkerMXBean workerMXBean) {
+        try {
+            final ObjectName objectName = new ObjectName("org.xnio", ObjectProperties.properties(ObjectProperties.property("type", "Xnio"), ObjectProperties.property("provider", ObjectName.quote(workerMXBean.getProviderName())), ObjectProperties.property("worker", ObjectName.quote(workerMXBean.getName()))));
+            MBeanHolder.MBEAN_SERVER.registerMBean(workerMXBean, objectName);
+            return new MBeanCloseable(objectName);
+        } catch (Throwable ignored) {
+            return IoUtils.nullCloseable();
+        }
+    }
+```
+
+如果你想要了解`MXBean`的更多信息，请自行查阅资料。此处只介绍一下如何通过`MXBean`查看相应的信息。
+
+1. 运行`HelloWorldServer`示例
+2. 打开`Terminal`，并输入`jconsole`命令
+3. 选择`HelloWorldServer`连接，并选择`MBean标签`
+
+如下所示：
+
+![](image/mxbeans.png)
+
 ### 初始化缓冲池
 
 `xnio`并没有像`Netty`那样重新设计了一套缓冲区的API，而是依然使用jdk自带的nio缓冲区，因此Undertow也不能从中获取到一些编码的好处。由于jdk并没有提供缓冲池相关的工具类，在此处Undertow实现了一个非常简易的池化缓冲区，以便重复利用开辟出来的缓冲区。
@@ -416,4 +772,201 @@ xnio = Xnio.getInstance(Undertow.class.getClassLoader());
     }
 ```
 
-Undertow支持`AJP`， `HTTP`， `HTTPS`以及`HTTP2`四种协议。
+Undertow支持`AJP`， `HTTP`， `HTTPS`以及`HTTP2`四种协议。由于本节主要目标是分析Undertow的启动过程，因此选择最简单的`HTTP`协议分析。当然，其他协议大体也相似，只多了一些协议特有的处理过程，例如`HTTPS`增加一层`SSL`协议处理。
+
+```java
+    OptionMap undertowOptions = OptionMap.builder().set(UndertowOptions.BUFFER_PIPELINED_DATA, true).addAll(serverOptions).getMap();
+    // 默认false，HTTP/2构建在HTTP或HTTPS之上
+    boolean http2 = serverOptions.get(UndertowOptions.ENABLE_HTTP2, false);
+    // 构造监听器，处理到来的请求
+    HttpOpenListener openListener = new HttpOpenListener(buffers, undertowOptions);
+    HttpHandler handler = rootHandler;
+    if (http2) {
+        // 如果启用了http2，那么需要处理http升级
+        handler = new Http2UpgradeHandler(handler);
+    }
+    openListener.setRootHandler(handler);
+    final ChannelListener<StreamConnection> finalListener;
+    // 处理代理
+    if (listener.useProxyProtocol) {
+        finalListener = new ProxyProtocolOpenListener(openListener, null, buffers, OptionMap.EMPTY);
+    } else {
+        finalListener = openListener;
+    }
+
+    ChannelListener<AcceptingChannel<StreamConnection>> acceptListener = ChannelListeners.openListenerAdapter(finalListener);
+    // 创建服务器
+    AcceptingChannel<? extends StreamConnection> server = worker.createStreamConnectionServer(
+                new InetSocketAddress(Inet4Address.getByName(listener.host), listener.port),
+                acceptListener, socketOptionsWithOverrides);
+    server.resumeAccepts();
+    channels.add(server);
+    listenerInfo.add(new ListenerInfo("http", server.getLocalAddress(), openListener, null, server));
+```
+
+其中核心代码为`HttpOpenListener`, `openListener.setRootHandler(handler)`, `createStreamConnectionServer`这几个方法。
+
+`HttpOpenListener`类的声明如下所示：
+
+```java
+public final class HttpOpenListener implements ChannelListener<StreamConnection>, DelegateOpenListener
+```
+
+它实现了`ChannelListener`接口，这个接口是`xnio`创建服务器要求提供的。当请求到来时，将会交由它进行处理。
+
+而`HttpHandler`则是由用户提供，用于提供自定义的业务逻辑等。当`ChannelListener`进行了预处理后，会将解析后的HTTP请求交由`HttpHandler`处理。在之前的`HelloWorldServer`示例中，对于所有的请求都返回`HelloWorld`响应。
+
+上述代码大部分做的都是准备工作，真正构建服务器的代码为`createStreamConnectionServer`方法。
+
+```java
+~ XnioWorker.java
+
+    public AcceptingChannel<StreamConnection> createStreamConnectionServer(SocketAddress bindAddress, ChannelListener<? super AcceptingChannel<StreamConnection>> acceptListener, OptionMap optionMap) throws IOException {
+        if (bindAddress == null) {
+            throw msg.nullParameter("bindAddress");
+        }
+        if (bindAddress instanceof InetSocketAddress) {
+            return createTcpConnectionServer((InetSocketAddress) bindAddress, acceptListener, optionMap);
+        } else if (bindAddress instanceof LocalSocketAddress) {
+            return createLocalStreamConnectionServer((LocalSocketAddress) bindAddress, acceptListener, optionMap);
+        } else {
+            throw msg.badSockType(bindAddress.getClass());
+        }
+    }
+
+
+~ NioXnioWorker.java
+
+    protected AcceptingChannel<StreamConnection> createTcpConnectionServer(final InetSocketAddress bindAddress, final ChannelListener<? super AcceptingChannel<StreamConnection>> acceptListener, final OptionMap optionMap) throws IOException {
+        checkShutdown();
+        boolean ok = false;
+        // 开启一个ServerSocketChannel
+        final ServerSocketChannel channel = ServerSocketChannel.open();
+        try {
+            // 设置接收缓冲区
+            if (optionMap.contains(Options.RECEIVE_BUFFER)) channel.socket().setReceiveBufferSize(optionMap.get(Options.RECEIVE_BUFFER, -1));
+            // 设置复用地址
+            channel.socket().setReuseAddress(optionMap.get(Options.REUSE_ADDRESSES, true));
+            // 开启非阻塞模式
+            channel.configureBlocking(false);
+            // 绑定本地地址
+            if (optionMap.contains(Options.BACKLOG)) {
+                channel.socket().bind(bindAddress, optionMap.get(Options.BACKLOG, 128));
+            } else {
+                channel.socket().bind(bindAddress);
+            }
+            if (false) {
+                final NioTcpServer server = new NioTcpServer(this, channel, optionMap);
+                server.setAcceptListener(acceptListener);
+                ok = true;
+                return server;
+            } else {
+                // 创建服务器
+                final QueuedNioTcpServer server = new QueuedNioTcpServer(this, channel, optionMap);
+                server.setAcceptListener(acceptListener);
+                ok = true;
+                return server;
+            }
+        } finally {
+            if (! ok) {
+                IoUtils.safeClose(channel);
+            }
+        }
+    }
+```
+
+在`HelloWorldServer`示例中我们提供的为`InetSocketAddress`类型的地址，因此会调用`createTcpConnectionServer`方法。`createTcpConnectionServer`主要包含下面几步：
+
+1. 开启一个`ServerSocketChannel`
+2. 配置`socket`
+3. 构造服务器
+
+#### 配置`socket`
+
+- SO_RCVBUF： 配置接受缓冲区以及TCP接受窗口大小
+- SO_REUSEADDR： 当TCP连接结束后，无需等待`TIME_WAIT`时间后才能重新使用。查看[此处](https://www.jianshu.com/p/141aa1c41f15)了解更多信息
+- BACKLOG： 配置全连接队列大小，查看[此处](https://www.jianshu.com/p/7fde92785056)了解更多信息
+
+
+```java
+    QueuedNioTcpServer(final NioXnioWorker worker, final ServerSocketChannel channel, final OptionMap optionMap) throws IOException {
+        super(worker);
+        this.channel = channel;
+        this.thread = worker.getAcceptThread();
+        final WorkerThread[] workerThreads = worker.getAll();
+        final List<BlockingQueue<SocketChannel>> acceptQueues = new ArrayList<>(workerThreads.length);
+        for (int i = 0; i < workerThreads.length; i++) {
+            acceptQueues.add(i, new LinkedBlockingQueue<SocketChannel>());
+        }
+        this.acceptQueues = acceptQueues;
+        socket = channel.socket();
+        if (optionMap.contains(Options.SEND_BUFFER)) {
+            final int sendBufferSize = optionMap.get(Options.SEND_BUFFER, DEFAULT_BUFFER_SIZE);
+            if (sendBufferSize < 1) {
+                throw log.parameterOutOfRange("sendBufferSize");
+            }
+            sendBufferUpdater.set(this, sendBufferSize);
+        }
+        if (optionMap.contains(Options.KEEP_ALIVE)) {
+            keepAliveUpdater.lazySet(this, optionMap.get(Options.KEEP_ALIVE, false) ? 1 : 0);
+        }
+        if (optionMap.contains(Options.TCP_OOB_INLINE)) {
+            oobInlineUpdater.lazySet(this, optionMap.get(Options.TCP_OOB_INLINE, false) ? 1 : 0);
+        }
+        if (optionMap.contains(Options.TCP_NODELAY)) {
+            tcpNoDelayUpdater.lazySet(this, optionMap.get(Options.TCP_NODELAY, false) ? 1 : 0);
+        }
+        if (optionMap.contains(Options.READ_TIMEOUT)) {
+            readTimeoutUpdater.lazySet(this, optionMap.get(Options.READ_TIMEOUT, 0));
+        }
+        if (optionMap.contains(Options.WRITE_TIMEOUT)) {
+            writeTimeoutUpdater.lazySet(this, optionMap.get(Options.WRITE_TIMEOUT, 0));
+        }
+        final int highWater;
+        final int lowWater;
+        if (optionMap.contains(Options.CONNECTION_HIGH_WATER) || optionMap.contains(Options.CONNECTION_LOW_WATER)) {
+            highWater = optionMap.get(Options.CONNECTION_HIGH_WATER, Integer.MAX_VALUE);
+            lowWater = optionMap.get(Options.CONNECTION_LOW_WATER, highWater);
+            if (highWater <= 0) {
+                throw badHighWater();
+            }
+            if (lowWater <= 0 || lowWater > highWater) {
+                throw badLowWater(highWater);
+            }
+            final long highLowWater = (long) highWater << CONN_HIGH_BIT | (long) lowWater << CONN_LOW_BIT;
+            connectionStatusUpdater.lazySet(this, highLowWater);
+        } else {
+            highWater = Integer.MAX_VALUE;
+            lowWater = Integer.MAX_VALUE;
+            connectionStatusUpdater.lazySet(this, CONN_LOW_MASK | CONN_HIGH_MASK);
+        }
+        final SelectionKey key = thread.registerChannel(channel);
+        handle = new QueuedNioTcpServerHandle(this, thread, key, highWater, lowWater);
+        key.attach(handle);
+        mbeanHandle = NioXnio.register(new XnioServerMXBean() {
+            public String getProviderName() {
+                return "nio";
+            }
+
+            public String getWorkerName() {
+                return worker.getName();
+            }
+
+            public String getBindAddress() {
+                return String.valueOf(getLocalAddress());
+            }
+
+            public int getConnectionCount() {
+                return handle.getConnectionCount();
+            }
+
+            public int getConnectionLimitHighWater() {
+                return getHighWater(connectionStatus);
+            }
+
+            public int getConnectionLimitLowWater() {
+                return getLowWater(connectionStatus);
+            }
+        });
+    }
+```
