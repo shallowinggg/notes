@@ -622,6 +622,21 @@ xnio = Xnio.getInstance(Undertow.class.getClassLoader());
 
 ![](image/mxbeans.png)
 
+#### 启动`XnioWorker`
+
+启动`XnioWorker`的过程很简单，只是启动所有的工作线程以及监听线程。如下所示：
+
+```java
+    void start() {
+        for (WorkerThread worker : workerThreads) {
+            openResourceUnconditionally();
+            worker.start();
+        }
+        openResourceUnconditionally();
+        acceptThread.start();
+    }
+```
+
 ### 初始化缓冲池
 
 `xnio`并没有像`Netty`那样重新设计了一套缓冲区的API，而是依然使用jdk自带的nio缓冲区，因此Undertow也不能从中获取到一些编码的好处。由于jdk并没有提供缓冲池相关的工具类，在此处Undertow实现了一个非常简易的池化缓冲区，以便重复利用开辟出来的缓冲区。
@@ -879,7 +894,7 @@ public final class HttpOpenListener implements ChannelListener<StreamConnection>
 
 1. 开启一个`ServerSocketChannel`
 2. 配置`socket`
-3. 构造服务器
+3. 创建`TCP`服务器
 
 #### 配置`socket`
 
@@ -887,6 +902,16 @@ public final class HttpOpenListener implements ChannelListener<StreamConnection>
 - SO_REUSEADDR： 当TCP连接结束后，无需等待`TIME_WAIT`时间后才能重新使用。查看[此处](https://www.jianshu.com/p/141aa1c41f15)了解更多信息
 - BACKLOG： 配置全连接队列大小，查看[此处](https://www.jianshu.com/p/7fde92785056)了解更多信息
 
+最后绑定给定的本机地址，监听客户端的连接。
+
+#### 创建`TCP`服务器
+
+```java
+final QueuedNioTcpServer server = new QueuedNioTcpServer(this, channel, optionMap);
+server.setAcceptListener(acceptListener);
+```
+
+由于`HTTP`协议构建于`TCP`协议之上，因此创建服务器时选择JDK提供的TCP工具类。`QueuedNioTcpServer`的构造方法如下所示：
 
 ```java
     QueuedNioTcpServer(final NioXnioWorker worker, final ServerSocketChannel channel, final OptionMap optionMap) throws IOException {
@@ -900,6 +925,7 @@ public final class HttpOpenListener implements ChannelListener<StreamConnection>
         }
         this.acceptQueues = acceptQueues;
         socket = channel.socket();
+        // 延迟配置socket
         if (optionMap.contains(Options.SEND_BUFFER)) {
             final int sendBufferSize = optionMap.get(Options.SEND_BUFFER, DEFAULT_BUFFER_SIZE);
             if (sendBufferSize < 1) {
@@ -940,6 +966,7 @@ public final class HttpOpenListener implements ChannelListener<StreamConnection>
             lowWater = Integer.MAX_VALUE;
             connectionStatusUpdater.lazySet(this, CONN_LOW_MASK | CONN_HIGH_MASK);
         }
+        // 注册到selector
         final SelectionKey key = thread.registerChannel(channel);
         handle = new QueuedNioTcpServerHandle(this, thread, key, highWater, lowWater);
         key.attach(handle);
@@ -970,3 +997,93 @@ public final class HttpOpenListener implements ChannelListener<StreamConnection>
         });
     }
 ```
+
+构造过程主要如下：
+
+1. 从参数中获取必要的组件
+2. 获取socket配置，延迟设置
+3. 将`Channel`注册到`Selector`上
+
+其中第三步较为关键，具体代码如下：
+
+```java
+    final SelectionKey key = thread.registerChannel(channel);
+    handle = new QueuedNioTcpServerHandle(this, thread, key, highWater, lowWater);
+    key.attach(handle);
+```
+
+它将给定的`ServerSocketChannel`注册到`Selector`上，并且构造一个处理器，将其作为`SelectionKey`的`attachment`以供接受客户端连接时使用。
+
+```java
+final class QueuedNioTcpServerHandle extends NioHandle implements ChannelClosed {
+
+    private final QueuedNioTcpServer server;
+
+    QueuedNioTcpServerHandle(final QueuedNioTcpServer server, final WorkerThread workerThread, final SelectionKey key, final int highWater, final int lowWater) {
+        super(workerThread, key);
+        this.server = server;
+    }
+
+    void handleReady(final int ops) {
+        server.handleReady();
+    }
+
+    // ......
+}
+```
+
+它的`handleReady()`方法事实上只是调用了`QueuedNioTcpServer#handleReady()`方法，交由其进行处理。
+
+### 监听连接
+
+当服务器创建完成后，需要设置其开始监听连接。因为在创建服务器的时候，设置了`ServerSocketChannel`的`ops`为`0`而不是`ACCEPT`，延迟设置也是因为必要的组件还未准备完成。具体如下：
+
+```java
+    server.resumeAccepts();
+
+    public void resumeAccepts() {
+        synchronized (this) {
+            suspended = false;
+            // 新增ops  ACCEPT
+            handle.resume(SelectionKey.OP_ACCEPT);
+        }
+    }
+
+    void resume(final int ops) {
+        try {
+            if (! allAreSet(selectionKey.interestOps(), ops)) {
+                workerThread.setOps(selectionKey, ops);
+            }
+        } catch (CancelledKeyException ignored) {}
+    }
+
+    void setOps(final SelectionKey key, final int ops) {
+        if (currentThread() == this) {
+            try {
+                key.interestOps(key.interestOps() | ops);
+            } catch (CancelledKeyException ignored) {}
+        } else if (OLD_LOCKING) {
+            final SynchTask task = new SynchTask();
+            queueTask(task);
+            try {
+                // Prevent selector from sleeping until we're done!
+                selector.wakeup();
+                key.interestOps(key.interestOps() | ops);
+            } catch (CancelledKeyException ignored) {
+            } finally {
+                task.done();
+            }
+        } else {
+            try {
+                key.interestOps(key.interestOps() | ops);
+                // 唤醒线程
+                if (polling) selector.wakeup();
+            } catch (CancelledKeyException ignored) {
+            }
+        }
+    }
+```
+
+上述过程其实最终起作用的代码只有`key.interestOps(key.interestOps() | ops);`。由于设置`ops`的线程不是`WorkerThread`，在之前`WorkerThread#run()`方法中我们可以发现，当任务队列中不存在普通任务以及定时任务时，那么它将会调用`Selector#select()`方法，这个方法是一个阻塞方法，线程因此也会一直阻塞直到有`I/O`事件出现或者被外界中断，在此处如果`polling`字段为`true`，即线程目前正处于阻塞轮询阶段，那么将调用`selector.wakeup()`方法唤醒，并重新调用`Selector#select()`方法以检查`ACCEPT`事件。
+
+至此，`Undertow`已经完成了启动过程。
