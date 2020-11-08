@@ -27,9 +27,9 @@ Integer integer = config.getInteger("number");
 
 `Archaius`通过继承`AbstractConfiguration`类自定义了一套便于使用的配置源，如下所示：
 
-![](./image/archaius-Configuration.png)
+![](../euraka/image/archaius-Configuration.png)
 
-![](./image/archaius-ConcurrentMapConfiguration.png)
+![](../euraka/image/archaius-ConcurrentMapConfiguration.png)
 
 `ConcurrentMapConfiguration`使用`ConcurrentHashMap`存储配置信息，以获取吞吐量和线程安全性的平衡。除此以外，它还覆盖了`AbstractConfiguration`类的配置监听器`ConfigurationListener`的增删方法，通过`CopyOnWriteArrayList`类代替`synchronized`最大程度无锁化。
 

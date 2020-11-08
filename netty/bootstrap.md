@@ -898,11 +898,11 @@ protected void doBeginRead() throws Exception {
 
 `ServerBootstrap`的初始化大致过程如下所示：
 
-![init](./bootstrap-init.png)
+![init](image/bootstrap-init.png)
 
-![register](./bootstrap-register.png)
+![register](image/bootstrap-register.png)
 
-![bind](./bootstrap-bind.png)
+![bind](image/bootstrap-bind.png)
 
 # Bootstrap
 
