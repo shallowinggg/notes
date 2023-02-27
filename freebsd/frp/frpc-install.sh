@@ -17,8 +17,6 @@ then
 elif [ $host == "arm64" ]
 then
     cp ./frp-arm64.tar.gz /home/freebsd/frp.tar.gz
-    echo "no support now"
-    exit 1
 else
     echo "no support now"
     exit 1
