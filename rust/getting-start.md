@@ -790,3 +790,675 @@ for word in text.split_whitespace() {
     *count += 1;
 }
 ```
+
+# error handling
+
+`rust` 将错误分为可恢复和不可恢复两类。
+
+## panic
+
+`panic` 属于不可恢复的错误。可以显式调用 `panic!` 使程序停止执行，
+
+```rust
+fn main() {
+    panic!("crash and burn");
+}
+```
+
+output:
+
+```
+$ cargo run
+   Compiling panic v0.1.0 (file:///projects/panic)
+    Finished dev [unoptimized + debuginfo] target(s) in 0.25s
+     Running `target/debug/panic`
+thread 'main' panicked at 'crash and burn', src/main.rs:2:5
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+```
+
+如果想要看到调用栈，那么需要设置 `RUST_BACKTRACE` 环境变量。
+
+```rust
+fn main() {
+    let v = vec![1, 2, 3];
+
+    v[99];
+}
+```
+
+```
+$ RUST_BACKTRACE=1 cargo run
+thread 'main' panicked at 'index out of bounds: the len is 3 but the index is 99', src/main.rs:4:5
+stack backtrace:
+   0: rust_begin_unwind
+             at /rustc/7eac88abb2e57e752f3302f02be5f3ce3d7adfb4/library/std/src/panicking.rs:483
+   1: core::panicking::panic_fmt
+             at /rustc/7eac88abb2e57e752f3302f02be5f3ce3d7adfb4/library/core/src/panicking.rs:85
+   2: core::panicking::panic_bounds_check
+             at /rustc/7eac88abb2e57e752f3302f02be5f3ce3d7adfb4/library/core/src/panicking.rs:62
+   3: <usize as core::slice::index::SliceIndex<[T]>>::index
+             at /rustc/7eac88abb2e57e752f3302f02be5f3ce3d7adfb4/library/core/src/slice/index.rs:255
+   4: core::slice::index::<impl core::ops::index::Index<I> for [T]>::index
+             at /rustc/7eac88abb2e57e752f3302f02be5f3ce3d7adfb4/library/core/src/slice/index.rs:15
+   5: <alloc::vec::Vec<T> as core::ops::index::Index<I>>::index
+             at /rustc/7eac88abb2e57e752f3302f02be5f3ce3d7adfb4/library/alloc/src/vec.rs:1982
+   6: panic::main
+             at ./src/main.rs:4
+   7: core::ops::function::FnOnce::call_once
+             at /rustc/7eac88abb2e57e752f3302f02be5f3ce3d7adfb4/library/core/src/ops/function.rs:227
+note: Some details are omitted, run with `RUST_BACKTRACE=full` for a verbose backtrace.
+```
+
+上面的信息需要启用 `debug symbol` ，如果通过 `--release` 方式运行，那么将不会得到详细的调用栈信息。
+
+## Result<T, E>
+
+大多数错误并没有严重到使程序停止运行，它们可以通过程序进行一些替代性处理。 `rust` 提供了 `Result` 枚举表示这种可恢复的错误。
+
+```rust
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+```
+
+```rust
+use std::fs::File;
+
+fn main() {
+    let f = File::open("hello.txt");
+
+    let f = match f {
+        Ok(file) => file,
+        Err(error) => panic!("Problem opening the file: {:?}", error),
+    };
+}
+```
+
+你也可以针对错误类型做不同的处理。
+
+```rust
+use std::fs::File;
+use std::io::ErrorKind;
+
+fn main() {
+    let f = File::open("hello.txt");
+
+    let f = match f {
+        Ok(file) => file,
+        Err(error) => match error.kind() {
+            ErrorKind::NotFound => match File::create("hello.txt") {
+                Ok(fc) => fc,
+                Err(e) => panic!("Problem creating the file: {:?}", e),
+            },
+            other_error => {
+                panic!("Problem opening the file: {:?}", other_error)
+            }
+        },
+    };
+}
+```
+
+上面的代码中存在了过多的 `match` 原语，你可以通过 `Result` 提供的方法配合闭包让代码更加简洁。
+
+```rust
+use std::fs::File;
+use std::io::ErrorKind;
+
+fn main() {
+    let f = File::open("hello.txt").unwrap_or_else(|error| {
+        if error.kind() == ErrorKind::NotFound {
+            File::create("hello.txt").unwrap_or_else(|error| {
+                panic!("Problem creating the file: {:?}", error);
+            })
+        } else {
+            panic!("Problem opening the file: {:?}", error);
+        }
+    });
+}
+```
+
+使用 `unwrap`  `expect` 方法也可以简化 `match` 。
+
+```rust
+use std::fs::File;
+
+fn main() {
+    let f = File::open("hello.txt").unwrap();
+    let f = File::open("hello.txt").expect("Failed to open hello.txt");
+}
+```
+
+### 传递错误
+
+```rust
+use std::fs::File;
+use std::io::{self, Read};
+
+fn read_username_from_file() -> Result<String, io::Error> {
+    let f = File::open("hello.txt");
+
+    let mut f = match f {
+        Ok(file) => file,
+        Err(e) => return Err(e),
+    };
+
+    let mut s = String::new();
+
+    match f.read_to_string(&mut s) {
+        Ok(_) => Ok(s),
+        Err(e) => Err(e),
+    }
+}
+```
+
+为了简化错误传递操作， `rust` 提供了 `?` 操作符。
+
+```rust
+use std::fs::File;
+use std::io;
+use std::io::Read;
+
+fn read_username_from_file() -> Result<String, io::Error> {
+    let mut f = File::open("hello.txt")?;
+    let mut s = String::new();
+    f.read_to_string(&mut s)?;
+    Ok(s)
+}
+
+// or
+fn read_username_from_file() -> Result<String, io::Error> {
+    let mut s = String::new();
+
+    File::open("hello.txt")?.read_to_string(&mut s)?;
+
+    Ok(s)
+}
+```
+
+# Generic Types, Traits, and Lifetimes
+
+## Generic Type
+
+```rust
+fn largest<T>(list: &[T]) -> T {
+}
+
+struct Point<T> {
+    x: T,
+    y: T,
+}
+
+struct Point<T, U> {
+    x: T,
+    y: U,
+}
+
+enum Option<T> {
+    Some(T),
+    None,
+}
+
+enum Result<T, E> {
+    Ok(T),
+    Err(E),
+}
+
+impl<T> Point<T> {
+    fn x(&self) -> &T {
+        &self.x
+    }
+}
+
+impl Point<f32> {
+    fn distance_from_origin(&self) -> f32 {
+        (self.x.powi(2) + self.y.powi(2)).sqrt()
+    }
+}
+
+```
+
+## Trait
+
+```rust
+pub trait Summary {
+    fn summarize(&self) -> String;
+}
+
+pub struct NewsArticle {
+    pub headline: String,
+    pub location: String,
+    pub author: String,
+    pub content: String,
+}
+
+impl Summary for NewsArticle {
+    fn summarize(&self) -> String {
+        format!("{}, by {} ({})", self.headline, self.author, self.location)
+    }
+}
+
+pub struct Tweet {
+    pub username: String,
+    pub content: String,
+    pub reply: bool,
+    pub retweet: bool,
+}
+
+impl Summary for Tweet {
+    fn summarize(&self) -> String {
+        format!("{}: {}", self.username, self.content)
+    }
+}
+```
+
+```rust
+pub struct NewsArticle {
+    pub headline: String,
+    pub location: String,
+    pub author: String,
+    pub content: String,
+}
+
+impl Summary for NewsArticle {
+    fn summarize(&self) -> String {
+        format!("{}, by {} ({})", self.headline, self.author, self.location)
+    }
+}
+
+pub struct Tweet {
+    pub username: String,
+    pub content: String,
+    pub reply: bool,
+    pub retweet: bool,
+}
+
+impl Summary for Tweet {
+    fn summarize(&self) -> String {
+        format!("{}: {}", self.username, self.content)
+    }
+}
+```
+
+你可以为 `Trait` 提供默认实现。
+
+```rust
+pub trait Summary {
+    fn summarize(&self) -> String {
+        String::from("(Read more...)")
+    }
+}
+
+impl Summary for Tweet {}
+```
+
+默认实现可以调用 `Trait` 的其他方法，不管它们有没有默认实现。
+
+```rust
+pub trait Summary {
+    fn summarize_author(&self) -> String;
+
+    fn summarize(&self) -> String {
+        format!("(Read more from {}...)", self.summarize_author())
+    }
+}
+```
+
+### `Trait` 作为参数
+
+```rust
+pub fn notify(item: &impl Summary) {
+    println!("Breaking news! {}", item.summarize());
+}
+```
+
+`rust` 提供了一个语法糖 `trait bound` ，如下所示，它和上面 `impl Trait` 的实现是一样的。
+
+```rust
+pub fn notify<T: Summary>(item: &T) {
+    println!("Breaking news! {}", item.summarize());
+}
+```
+
+对于简单的函数声明来说，使用 `impl Trait` 更加简洁，而 `trait bound` 可以用来表示其他复杂的情况。
+
+```rust
+pub fn notify(item1: &impl Summary, item2: &impl Summary) {
+}
+
+// better
+pub fn notify<T: Summary>(item1: &T, item2: &T) {
+}
+```
+
+你可以使用 `+` 操作符来指定多个 `trait bound` ，如下所示， `item` 参数必须同时实现 `Summary` 和 `Display` 两个 `Trait` 。
+
+```rust
+pub fn notify(item: &(impl Summary + Display));
+
+pub fn notify<T: Summary + Display>(item: &T);
+```
+
+使用太多的 `trait bound` 会使代码难以阅读，你可以使用 `where` 语句来解决这个问题。
+
+```rust
+fn some_function<T: Display + Clone, U: Clone + Debug>(t: &T, u: &U) -> i32 {
+}
+
+fn some_function<T, U>(t: &T, u: &U) -> i32
+    where T: Display + Clone,
+          U: Clone + Debug,
+{
+}
+```
+
+### `Trait` 作为返回值
+
+```rust
+fn returns_summarizable() -> impl Summary {
+    Tweet {
+        username: String::from("horse_ebooks"),
+        content: String::from(
+            "of course, as you probably already know, people",
+        ),
+        reply: false,
+        retweet: false,
+    }
+}
+```
+
+注意，你只可以在返回一种类型时使用 `impl Trait` 作为返回值。下面这段代码将无法通过编译。
+
+```rust
+fn returns_summarizable(switch: bool) -> impl Summary {
+    if switch {
+        NewsArticle {
+            headline: String::from(
+                "Penguins win the Stanley Cup Championship!",
+            ),
+            location: String::from("Pittsburgh, PA, USA"),
+            author: String::from("Iceburgh"),
+            content: String::from(
+                "The Pittsburgh Penguins once again are the best \
+                 hockey team in the NHL.",
+            ),
+        }
+    } else {
+        Tweet {
+            username: String::from("horse_ebooks"),
+            content: String::from(
+                "of course, as you probably already know, people",
+            ),
+            reply: false,
+            retweet: false,
+        }
+    }
+}
+```
+
+### 使用 `Trait Bound` 有条件的实现方法
+
+`cmp_display` 方法只会在 `T` 实现了 `Display` 和 `PartialOrd`  `Trait` 时才允许调用。
+
+```rust
+use std::fmt::Display;
+
+struct Pair<T> {
+    x: T,
+    y: T,
+}
+
+impl<T> Pair<T> {
+    fn new(x: T, y: T) -> Self {
+        Self { x, y }
+    }
+}
+
+impl<T: Display + PartialOrd> Pair<T> {
+    fn cmp_display(&self) {
+        if self.x >= self.y {
+            println!("The largest member is x = {}", self.x);
+        } else {
+            println!("The largest member is y = {}", self.y);
+        }
+    }
+}
+```
+
+你可以对任何已经实现了其他 `Trait` 的类型有条件的实现一个 `Trait` 。在满足 `Trait Bound` 的任何类型上实现 `Trait` 称为 `blanket implementations` ，这在标准库中广泛应用。例如，标准库为任何实现了 `Display`  `Trait` 的类型实现 `ToString`  `Trait` 。
+
+```rust
+impl<T: Display> ToString for T {
+    // --snip--
+}
+```
+
+## Lifetime
+
+[lifetime-syntax](https://doc.rust-lang.org/book/ch10-03-lifetime-syntax.html)
+
+# Test
+
+在方法定义上标记 `#[test]` 将会把这个方法作为一个测试用例。
+
+```rust
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn it_works() {
+        assert_eq!(2 + 2, 4);
+    }
+}
+```
+
+执行 `cargo test` 命令将会运行所有测试用例。
+
+# workspace
+
+随着项目开发，单个 `lib crate` 将会变的过于庞大，因此需要将其拆分为多个 `lib crate` 以便更好的管理。 `rust` 提供了 `workspace` 特性帮忙管理多个相关的 `crate` 。
+
+## create
+
+一个 `workspace` 由一组 `package` 组成，它们共享同一个 `Cargo.lock` 和 `output` 文件夹（避免重复构建，同时使所有 `crate` 的依赖保持一致）。
+
+首先为 `workspace` 创建一个文件夹，然后创建一个 `Cargo.toml` 文件，它用于配置整个 `workspace` 。
+
+```sh
+$ mkdir add
+$ cd add
+$ touch Cargo.toml
+```
+
+它不包含 `[package]` 区块等元信息，作为代替，它以 `[workspace]` 区块为始，这个区块允许我们通过指定 `crate` 的路径来将其增加到 `workspace` 中。例如，下面的配置增加了一个 `binary crate`  `adder` 。
+
+```toml
+[workspace]
+
+members = [
+    "adder",
+]
+```
+
+接下来，通过 `cargo new` 命令创建 `adder`  `crate` 。
+
+```sh
+$ cargo new adder
+```
+
+此时运行 `cargo build` ，文件结构如下所示：
+
+```
+├── Cargo.lock
+├── Cargo.toml
+├── adder
+│   ├── Cargo.toml
+│   └── src
+│       └── main.rs
+└── target
+```
+
+接下里，创建 `lib crate`  `add-one` 。首先将其增加到 `members` 列表中。
+
+```toml
+[workspace]
+
+members = [
+    "adder",
+    "add-one",
+]
+```
+
+然后创建名为 `add-one` 的 `lib crate` 。
+
+```sh
+$ cargo new add-one --lib
+```
+
+此时文件结构如下所示：
+
+```
+├── Cargo.lock
+├── Cargo.toml
+├── add-one
+│   ├── Cargo.toml
+│   └── src
+│       └── lib.rs
+├── adder
+│   ├── Cargo.toml
+│   └── src
+│       └── main.rs
+└── target
+```
+
+## run
+
+然后，在 `add-one` 中增加 `add_one` 函数。
+
+```rust
+pub fn add_one(x: i32) -> i32 {
+    x + 1
+}
+```
+
+如果想要在 `adder` 中使用，那么将 `add-one` 增加到 `adder/Cargo.toml` 中。
+
+```toml
+[package]
+name = "adder"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+add-one = { path = "../add-one" }
+```
+
+然后就可以在 `adder` 中使用 `add-one` 提供的所有接口。
+
+```rust
+use add_one;
+
+fn main() {
+    let num = 10;
+    println!(
+        "Hello, world! {} plus one is {}!",
+        num,
+        add_one::add_one(num)
+    );
+}
+```
+
+如果想要运行 `add`  `workspace` 中的 `binary crate` ，需要通过 `-p` 参数指定包名。
+
+```sh
+$ cargo run -p adder
+    Finished dev [unoptimized + debuginfo] target(s) in 0.0s
+     Running `target/debug/adder`
+Hello, world! 10 plus one is 11!
+```
+
+## external package
+
+由于整个 `workspace` 只有一个 `Cargo.lock` 文件，所有 `crate` 将会使用相同依赖的同一个版本。另外，依赖不会进行传递，如果想要在多个 `crate` 中使用同一个依赖，那么需要在每个 `crate` 的 `Cargo.toml` 中都增加那个依赖。如果多个 `crate` 中指定同一个依赖的版本不兼容（ `cargo` 会确保所有 `crate` 使用同一个版本），那么将无法通过编译。
+
+# smart pointer
+
+`reference` 和 `smart pointer` 都是指针的一种， `reference` 只借取数据，而 `smart pointer` 拥有它所指向的数据。
+
+`smart pointer` 一般通过 `struct` 实现，它们和普通 `struct` 不同的地方在于它们实现了 `Defer` 和 `Drop`  `Trait` 。 `Defer`  `Trait` 允许 `smart pointer` 的实现表现的像 `reference` ，因此其他代码可以同时和这两种类型一起工作。 `Drop`  `Trait` 允许自定义实例销毁逻辑，当实例退出作用域时， `rust` 编译器会自动加上此逻辑。
+
+标准库提供了几个 `smart pointer` 的实现：
+* Box<T>
+* Rc<T>
+* Ref<T> / RefMut<T>
+
+## Box<T>
+
+`Box<T>` 允许你讲数据存在堆上而非栈上，同时它不会产生性能开销，但是它也没有其他更多能力。你可以在以下场景使用它：
+
+* 当你拥有一个编译时无法确定大小的类型，但是想要在需要精确大小的上下文中使用它
+* 当你拥有一个很大的数据并且想要转移它的所有权，但是不想发生拷贝
+* 当你想要拥有一个值，并且你只关心它实现的`Trait`而非特定类型
+
+```rust
+fn main() {
+    let b = Box::new(5);
+    println!("b = {}", b);
+}
+```
+
+通过 `Box<T>` 你可以定义递归类型。例如下面的 `List` 类型，它无法通过编译，因为编译器无法确定 `Cons` 的大小。
+
+```rust
+enum List {
+    Cons(i32, List),
+    Nil,
+}
+```
+
+使用 `Box<T>` 封装 `List` 后，编译器可以确定 `Cons` 实例的大小由一个 `i32` 和一个 `usize` 大小的指针组成。
+
+```rust
+enum List {
+    Cons(i32, Box<List>),
+    Nil,
+}
+
+use crate::List::{Cons, Nil};
+
+fn main() {
+    let list = Cons(1, Box::new(Cons(2, Box::new(Cons(3, Box::new(Nil))))));
+}
+```
+
+* [ `Deref Trait` ](https://doc.rust-lang.org/book/ch15-02-deref.html)
+* [ `Drop Trait` ](https://doc.rust-lang.org/book/ch15-03-drop.html)
+
+## Rc<T>
+
+`Rc<T>` 是基于引用计数的 `smart pointer` 。大部分情况下，你都能确定哪个变量持有特定的值，但是有时候一个值可能会存在多个持有者，例如图数据结构中的节点。
+
+当想要在程序的多个部分使用分配在堆上的数据，同时无法在编译期确定哪一部分代码最终完成数据的使用时，可以使用 `Rc<T>` 来解决这个问题。
+
+注意， `Rc<T>` 只能在单线程环境下使用。
+
+回到基于 `Box<T>` 实现的 `List` 数据结构，如果想要创建两个 `List` ，并且它们同时持有另一个 `List` ，如下所示：
+
+```rust
+enum List {
+    Cons(i32, Box<List>),
+    Nil,
+}
+
+use crate::List::{Cons, Nil};
+
+fn main() {
+    let a = Cons(5, Box::new(Cons(10, Box::new(Nil))));
+    let b = Cons(3, Box::new(a));
+    let c = Cons(4, Box::new(a));
+}
+```
+
+上面的程序无法通过编译，因为 `b` 已经获取了 `a` 的所有权， `c` 无法再次获取。如果改变 `Cons` 的定义使它持有引用，那么需要指定 `lifetime` 参数，这会导致所有的元素都必须和整个 `List` 的生命周期一致。
