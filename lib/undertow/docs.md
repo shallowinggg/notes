@@ -529,7 +529,7 @@ io.undertow.server.protocol.ajp.AjpOpenListener
 
 客户端仅发送`HTTP/2`连接前言并假定服务器支持它。在开放的Internet上通常不使用此功能，但是当你知道后端服务器支持`HTTP/2`时，它对于负载均衡器之类的功能很有用。
 
-#### HTTP 
+#### HTTP
 
 客户端在初始请求中发送`Upgrade: h2c`标头。如果服务器接受升级，那么将启动`HTTP/2`连接，并使用`HTTP/2`将响应发送回初始请求。
 
@@ -1212,11 +1212,14 @@ To this end Undertow provides a way to specify a textual representation of a pre
 
 For example, the following predicates all match POST requests:
 
+```
 method(POST)
 method(value=POST)
-equals({%{METHOD}, POST})
-equals(%m, "POST")
-regex(pattern="POST", value="%m", full-match=true)
+% equals({%{METHOD}, POST})
+% equals(%m, "POST")
+% regex(pattern="POST", value="%m", full-match=true)
+```
+
 Lets examine these a bit more closely. The first one method(POST) uses the built in method predicate that matches based on the method. As this predicate takes only a single parameter (that is the default parameter) it is not necessary to explicitly specify the parameter name. Also note that POST is not quoted, quoting is only necessary if the token contains spaces, commas or square braces.
 
 The second example method(value=POST) is the same as the first, except that the parameter name is explicitly specified.
@@ -2380,7 +2383,7 @@ The mechanisms will be tried in the order that they are listed. In the example s
 
 The built it list of mechanisms and the properties they take are as follows:
 
-Mechanism Name	Options	Notes	
+Mechanism Name	Options	Notes
 BASIC
 
 silent (true/false), charset, user-agent-charsets

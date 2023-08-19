@@ -77,7 +77,7 @@ package org.example;
  * Hello world!
  *
  */
-public class App 
+public class App
 {
     public static void main( String[] args )
     {
@@ -88,5 +88,5 @@ public class App
 
 执行`mvn compile`命令，此时便会执行`checkstyle`检查，结果如下所示：
 
-![](image/checkstyle-result.png)
+![](images/checkstyle-result.png)
 
