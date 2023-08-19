@@ -1215,9 +1215,8 @@ For example, the following predicates all match POST requests:
 ```
 method(POST)
 method(value=POST)
-% equals({%{METHOD}, POST})
-% equals(%m, "POST")
-% regex(pattern="POST", value="%m", full-match=true)
+equals(%m, "POST")
+regex(pattern="POST", value="%m", full-match=true)
 ```
 
 Lets examine these a bit more closely. The first one method(POST) uses the built in method predicate that matches based on the method. As this predicate takes only a single parameter (that is the default parameter) it is not necessary to explicitly specify the parameter name. Also note that POST is not quoted, quoting is only necessary if the token contains spaces, commas or square braces.
