@@ -1,3 +1,10 @@
+---
+layout: default
+title: Plugins
+parent: Maven
+grand_parent: Java
+---
+
 # license-maven-plugin
 
 为项目文件增加 `LICENSE` 头。

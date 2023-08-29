@@ -1,3 +1,20 @@
+---
+layout: default
+title: Read/Write
+parent: Netty
+nav_order: 4
+grand_parent: Lib
+---
+
+<details open markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
+- TOC
+{:toc}
+</details>
+
 `ServerBootstrap`启动成功后，`ServerChannel`开始监听`accpet`事件，具体处理监听事件的代码在`NioEventLoop`中。
 
 ```java

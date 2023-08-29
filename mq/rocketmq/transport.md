@@ -1,3 +1,11 @@
+---
+layout: default
+title: Transport
+parent: RocketMQ
+nav_order: 1
+grand_parent: 消息队列
+---
+
 RocketMQ使用Netty进行底层通信，包括`NameServer`、`Broker(Master/Slave)`、`Producer`、`Consumer`4个角色，接下来让我们分析一下它是如何实现的。
 
 Version: 4.5.2
@@ -59,7 +67,7 @@ extFields | HashMap<String, String> | 请求自定义扩展信息 | 响应自定
 上面的框图中可以大致了解`RocketMQ`中`NettyRemotingServer`的`Reactor`多线程模型。一个`Reactor`主线程（`eventLoopGroupBoss`，即为上面的`Netty_Reactor_Master`）负责监听TCP网络连接请求，建立好连接，创建`SocketChannel`，并注册到`Selector`上。`RocketMQ`的源码中会自动根据OS的类型选择`NIO`和`Epoll`，也可以通过参数配，然后监听真正的网络数据。拿到网络数据后，再丢给Worker线程池（`eventLoopGroupSelector`，即为上面的`Netty_Reactor_Pool`，源码中默认设置线程数为3），在真正执行业务逻辑之前需要进行SSL验证、编解码、空闲检查、网络连接管理，这些工作交给`defaultEventExecutorGroup`（即为上面的`Netty_Worker_Pool`，源码中默认设置线程数为8）去做。而处理业务操作放在业务线程池中执行，根据`RomotingCommand`的业务请求码code去`processorTable`这个本地缓存变量中找到对应的`processor`，然后封装成task任务后，提交给对应的业务`processor`处理线程池来执行（以处理请求消息为例，即为上面的`Remoting_Worker_Pool`）。从入口到业务逻辑的几个步骤中线程池一直再增加，这跟每一步逻辑复杂性相关，越复杂，需要的并发通道越宽。
 
 线程数 | 线程名 | 线程具体说明
- --- | --- | --- 
+ --- | --- | ---
 1 | NettyBoss_%d | Reactor 主线程
 N | NettyServerEPOLLSelector_%d_%d | Reactor 线程池
 M1 | NettyServerCodecThread_%d | Worker线程池
@@ -202,7 +210,7 @@ M2 | RemotingExecutorThread_%d | 业务processor处理线程池
 | code | 2 |
 | language | 1|
 | version | 2 |
-| opaque | 4 | 
+| opaque | 4 |
 | flag | 4 |
 | remark | 不定长 |
 | extFields | 不定长 |

@@ -1,3 +1,20 @@
+---
+layout: default
+title: Bootstrap
+parent: Netty
+nav_order: 3
+grand_parent: Lib
+---
+
+<details open markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
+- TOC
+{:toc}
+</details>
+
 # ServerBootstrap
 
 Netty服务端启动代码如下所示：
@@ -58,7 +75,7 @@ public ServerBootstrap group(EventLoopGroup parentGroup, EventLoopGroup childGro
 channel
 ├───nio
 │       NioEventLoopGroup
-├───oio 
+├───oio
 │       OioEventLoopGroup
 └───socket
         ├───nio
@@ -66,8 +83,8 @@ channel
         │         NioServerSocketChannel
         │         NioSocketChannel
         └───oio
-                  OioDatagramChannel 
-                  OioServerSocketChannel 
+                  OioDatagramChannel
+                  OioServerSocketChannel
                   OioSocketChannel
 ```
 
@@ -366,14 +383,14 @@ void init(Channel channel) throws Exception {
 `ServerChannel`初始化之后，需要将其注册到`NioEventLoop`中。
 
 ```java
-# MultithreadEventLoopGroup.java 
+# MultithreadEventLoopGroup.java
 
 @Override
 public ChannelFuture register(Channel channel) {
     return next().register(channel);
 }
 
-# SingleThreadEventLoop.java 
+# SingleThreadEventLoop.java
 
 @Override
 public ChannelFuture register(Channel channel) {

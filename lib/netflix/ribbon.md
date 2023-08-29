@@ -1,3 +1,10 @@
+---
+layout: default
+title: ribbon
+parent: Netflix
+grand_parent: Lib
+---
+
 # config
 
 `ribbon`配置文件的属性格式如下：
@@ -10,7 +17,7 @@
 
 `config`包的核心组成结构如下：
 
-![](imageibbon-config.png)
+![](image/ribbon-config.png)
 
 ## IClientConfigKey
 
@@ -25,12 +32,12 @@ public interface IClientConfigKey<T> {
             super(configKey);
         }
     }
-    
+
 	/**
 	 * @return string representation of the key used for hash purpose.
 	 */
 	String key();
-	
+
 	/**
      * @return Data type for the key. For example, Integer.class.
 	 */
@@ -88,19 +95,19 @@ public interface IClientConfigKey<T> {
 
 ```java
 public interface IClientConfig {
-	
+
 	String getClientName();
-		
+
 	String getNameSpace();
 
 	void setNameSpace(String nameSpace);
 
 	/**
-	 * Load the properties for a given client and/or load balancer. 
+	 * Load the properties for a given client and/or load balancer.
 	 * @param clientName
 	 */
 	void loadProperties(String clientName);
-	
+
 	/**
 	 * load default values for this configuration
 	 */
@@ -115,7 +122,7 @@ public interface IClientConfig {
     default void forEach(BiConsumer<IClientConfigKey<?>, Object> consumer) {
         throw new UnsupportedOperationException();
     }
-    
+
     /**
      * Returns a typed property. If the property of IClientConfigKey is not set, it returns null.
      */
@@ -159,13 +166,13 @@ public interface IClientConfig {
     }
 
     /**
-     * Returns a typed property. If the property of IClientConfigKey is not set, 
+     * Returns a typed property. If the property of IClientConfigKey is not set,
      * it returns the default value passed in as the parameter.
      */
     <T> T get(IClientConfigKey<T> key, T defaultValue);
 
     /**
-     * Set the typed property with the given value. 
+     * Set the typed property with the given value.
      */
     <T> IClientConfig set(IClientConfigKey<T> key, T value);
 
@@ -267,7 +274,7 @@ public interface IClientConfig {
                 final Optional<T> next = valueSupplier.get();
                 if (!next.equals(previous.get())) {
                     LOG.info("[{}] new value for {}: {} -> {}", clientName, key.key(), previous.get(), next);
-                    previous.set(next); 
+                    previous.set(next);
                     internalProperties.put(key, next);
                 }
             };
@@ -288,7 +295,7 @@ public interface IClientConfig {
         activeReqeustsPerServerThreshold = niwsClientConfig.getDynamicProperty(MAX_LOAD_PER_SERVER);
     }
 
-    private boolean shouldEnableZoneAffinity() {    
+    private boolean shouldEnableZoneAffinity() {
         double loadPerServer = ...;
         if (zoneAffinity && loadPerServer >= activeReqeustsPerServerThreshold.getOrDefault()) {
             // do something
@@ -436,9 +443,9 @@ public interface PropertyResolver {
 /**
  * Class that represents a typical Server (or an addressable Node) i.e. a
  * Host:port identifier
- * 
+ *
  * @author stonse
- * 
+ *
  */
 public class Server {
 
@@ -489,19 +496,19 @@ public class Server {
 
 确定了服务实例的结构后，便可以在其基础上建立服务实例列表，由负载均衡器在此列表中进行选择。
 
-![](imageibbon-serverlist.png)
+![](image/ribbon-serverlist.png)
 
 ```java
 public interface ServerList<T extends Server> {
 
     public List<T> getInitialListOfServers();
-    
+
     /**
      * Return updated list of servers. This is called say every 30 secs
      * (configurable) by the Loadbalancer's Ping cycle
-     * 
+     *
      */
-    public List<T> getUpdatedListOfServers();   
+    public List<T> getUpdatedListOfServers();
 
 }
 
@@ -529,12 +536,12 @@ public interface ServerListFilter<T extends Server> {
  * to filter the servers returned from {@link #getUpdatedListOfServers()} or {@link #getInitialListOfServers()}.
  *
  */
-public abstract class AbstractServerList<T extends Server> implements ServerList<T>, IClientConfigAware {   
-     
-    
+public abstract class AbstractServerList<T extends Server> implements ServerList<T>, IClientConfigAware {
+
+
     /**
      * Get a ServerListFilter instance. It uses {@link ClientFactory#instantiateInstanceWithClientConfig(String, IClientConfig)}
-     * which in turn uses reflection to initialize the filter instance. 
+     * which in turn uses reflection to initialize the filter instance.
      * The filter class name is determined by the value of {@link CommonClientConfigKey#NIWSServerListFilterClassName}
      * in the {@link IClientConfig}. The default implementation is {@link ZoneAffinityServerListFilter}.
      */
@@ -545,7 +552,7 @@ public abstract class AbstractServerList<T extends Server> implements ServerList
                             CommonClientConfigKey.NIWSServerListFilterClassName,
                             ZoneAffinityServerListFilter.class.getName());
 
-            AbstractServerListFilter<T> abstractNIWSServerListFilter = 
+            AbstractServerListFilter<T> abstractNIWSServerListFilter =
                     (AbstractServerListFilter<T>) ClientFactory.instantiateInstanceWithClientConfig(niwsServerListFilterClassName, niwsClientConfig);
             return abstractNIWSServerListFilter;
         } catch (Throwable e) {
@@ -560,18 +567,18 @@ public abstract class AbstractServerList<T extends Server> implements ServerList
 /**
  * Utility class that can load the List of Servers from a Configuration (i.e
  * properties available via Archaius). The property name be defined in this format:
- * 
+ *
  * <pre>{@code
 <clientName>.<nameSpace>.listOfServers=<comma delimited hostname:port strings>
 }</pre>
- * 
+ *
  * @author awang
- * 
+ *
  */
 public class ConfigurationBasedServerList extends AbstractServerList<Server>  {
 
 	private IClientConfig clientConfig;
-		
+
 	@Override
 	public List<Server> getInitialListOfServers() {
 	    return getUpdatedListOfServers();
@@ -587,7 +594,7 @@ public class ConfigurationBasedServerList extends AbstractServerList<Server>  {
 	public void initWithNiwsConfig(IClientConfig clientConfig) {
 	    this.clientConfig = clientConfig;
 	}
-	
+
 	protected List<Server> derive(String value) {
 	    List<Server> list = Lists.newArrayList();
 		if (!Strings.isNullOrEmpty(value)) {
@@ -658,7 +665,7 @@ public class ZoneAffinityPredicate extends AbstractServerPredicate {
     }
 
 
-    private boolean shouldEnableZoneAffinity(List<T> filtered) {    
+    private boolean shouldEnableZoneAffinity(List<T> filtered) {
         if (!zoneAffinity && !zoneExclusive) {
             return false;
         }
@@ -672,7 +679,7 @@ public class ZoneAffinityPredicate extends AbstractServerPredicate {
             logger.debug("Determining if zone affinity should be enabled with given server list: {}", filtered);
             ZoneSnapshot snapshot = stats.getZoneSnapshot(filtered);
             double loadPerServer = snapshot.getLoadPerServer();
-            int instanceCount = snapshot.getInstanceCount();            
+            int instanceCount = snapshot.getInstanceCount();
             int circuitBreakerTrippedCount = snapshot.getCircuitTrippedCount();
             // 以下条件满足任何一个，则zone不健康
             // 1. zone中被断路的实例超过80%，通过<clientName>.<nameSpace>.zoneAffinity.maxBlackOutServesrPercentage设置
@@ -687,7 +694,7 @@ public class ZoneAffinityPredicate extends AbstractServerPredicate {
             } else {
                 return true;
             }
-            
+
         }
     }
 
@@ -714,9 +721,9 @@ public class ZoneAffinityPredicate extends AbstractServerPredicate {
      * to relatively unhealthy servers, which are defined as the following:
      * <p>
      * <ul>
-     * <li>Servers with their concurrent connection count exceeding the client configuration for 
+     * <li>Servers with their concurrent connection count exceeding the client configuration for
      *  {@code <clientName>.<nameSpace>.ServerListSubsetFilter.eliminationConnectionThresold} (default is 0)
-     * <li>Servers with their failure count exceeding the client configuration for 
+     * <li>Servers with their failure count exceeding the client configuration for
      *  {@code <clientName>.<nameSpace>.ServerListSubsetFilter.eliminationFailureThresold}  (default is 0)
      *  <li>If the servers evicted above is less than the forced eviction percentage as defined by client configuration
      *   {@code <clientName>.<nameSpace>.ServerListSubsetFilter.forceEliminatePercent} (default is 10%, or 0.1), the
@@ -725,8 +732,8 @@ public class ZoneAffinityPredicate extends AbstractServerPredicate {
      * </ul>
      * <p>
      * After the elimination, new servers will be randomly chosen from all servers pool to keep the
-     * number of the subset unchanged. 
-     * 
+     * number of the subset unchanged.
+     *
      */
     @Override
     public List<T> getFilteredListOfServers(List<T> servers) {
@@ -759,21 +766,21 @@ public class ZoneAffinityPredicate extends AbstractServerPredicate {
             // size is shrinking
             numToForceEliminate = newSubSet.size() - targetedListSize;
         } else if (minElimination > numEliminated) {
-            numToForceEliminate = minElimination - numEliminated; 
+            numToForceEliminate = minElimination - numEliminated;
         }
-        
+
         if (numToForceEliminate > newSubSet.size()) {
             numToForceEliminate = newSubSet.size();
         }
 
         if (numToForceEliminate > 0) {
-            List<T> sortedSubSet = Lists.newArrayList(newSubSet);           
+            List<T> sortedSubSet = Lists.newArrayList(newSubSet);
             sortedSubSet.sort(this);
             List<T> forceEliminated = sortedSubSet.subList(0, numToForceEliminate);
             newSubSet.removeAll(forceEliminated);
             candidates.removeAll(forceEliminated);
         }
-        
+
         // after forced elimination or elimination of unhealthy instances,
         // the size of the set may be less than the targeted size,
         // then we just randomly add servers from the big pool
@@ -789,8 +796,8 @@ public class ZoneAffinityPredicate extends AbstractServerPredicate {
             List<T> chosen = randomChoose(Lists.newArrayList(candidates), numToChoose);
             newSubSet.addAll(chosen);
         }
-        currentSubset = newSubSet;       
-        return Lists.newArrayList(newSubSet);            
+        currentSubset = newSubSet;
+        return Lists.newArrayList(newSubSet);
     }
 
 ```
@@ -801,7 +808,7 @@ public class ZoneAffinityPredicate extends AbstractServerPredicate {
 
 `ribbon`提供了丰富的负载均衡策略，如下所示：
 
-![](imageibbon-rule.png)
+![](image/ribbon-rule.png)
 
 `IRule`接口定义如下：
 
@@ -810,24 +817,24 @@ public class ZoneAffinityPredicate extends AbstractServerPredicate {
  * Interface that defines a "Rule" for a LoadBalancer. A Rule can be thought of
  * as a Strategy for loadbalacing. Well known loadbalancing strategies include
  * Round Robin, Response Time based etc.
- * 
+ *
  * @author stonse
- * 
+ *
  */
 public interface IRule {
     /*
      * choose one alive server from lb.allServers or
      * lb.upServers according to key
-     * 
+     *
      * @return choosen Server object. NULL is returned if none
-     *  server is available 
+     *  server is available
      */
 
     public Server choose(Object key);
-    
+
     public void setLoadBalancer(ILoadBalancer lb);
-    
-    public ILoadBalancer getLoadBalancer();    
+
+    public ILoadBalancer getLoadBalancer();
 }
 
 ```
@@ -848,7 +855,7 @@ public interface IRule {
 构造`WeightedResponseTimeRule`时，将会调用其`initialize(ILoadBalancer)`方法进行初始化，并通过`ServerWeight#maintainWeights`方法确定服务实例的权重，同时增加一个定时任务重新计算权重。
 
 ```java
-    void initialize(ILoadBalancer lb) {        
+    void initialize(ILoadBalancer lb) {
         if (serverWeightTimer != null) {
             serverWeightTimer.cancel();
         }
@@ -874,11 +881,11 @@ public interface IRule {
             if (lb == null) {
                 return;
             }
-            
+
             if (!serverWeightAssignmentInProgress.compareAndSet(false,  true))  {
-                return; 
+                return;
             }
-            
+
             try {
                 logger.info("Weight adjusting job started");
                 AbstractLoadBalancer nlb = (AbstractLoadBalancer) lb;
@@ -897,14 +904,14 @@ public interface IRule {
                 // weight for each server is (sum of responseTime of all servers - responseTime)
                 // so that the longer the response time, the less the weight and the less likely to be chosen
                 Double weightSoFar = 0.0;
-                
+
                 // create new list and hot swap the reference
                 List<Double> finalWeights = new ArrayList<Double>();
                 for (Server server : nlb.getAllServers()) {
                     ServerStats ss = stats.getSingleServerStat(server);
                     double weight = totalResponseTime - ss.getResponseTimeAvg();
                     weightSoFar += weight;
-                    finalWeights.add(weightSoFar);   
+                    finalWeights.add(weightSoFar);
                 }
                 setWeights(finalWeights);
             } catch (Exception e) {
@@ -943,7 +950,7 @@ public interface IRule {
             int serverIndex = 0;
 
             // last one in the list is the sum of all weights
-            double maxTotalWeight = currentWeights.size() == 0 ? 0 : currentWeights.get(currentWeights.size() - 1); 
+            double maxTotalWeight = currentWeights.size() == 0 ? 0 : currentWeights.get(currentWeights.size() - 1);
             // No server has been hit yet and total weight is not initialized
             // fallback to use round robin
             if (maxTotalWeight < 0.001d || serverCount != currentWeights.size()) {
@@ -1039,7 +1046,7 @@ public interface IRule {
         }
         return lastConnectionFailedTimestamp + blackOutPeriod;
     }
-    
+
     // 获取断路时间
     private long getCircuitBreakerBlackoutPeriod() {
         int failureCount = successiveConnectionFailureCount.get();
@@ -1063,8 +1070,8 @@ public interface IRule {
 ```java
     /**
      * This method is overridden to provide a more efficient implementation which does not iterate through
-     * all servers. This is under the assumption that in most cases, there are more available instances 
-     * than not. 
+     * all servers. This is under the assumption that in most cases, there are more available instances
+     * than not.
      */
     @Override
     public Server choose(Object key) {
@@ -1087,7 +1094,7 @@ public interface IRule {
         }
         return !shouldSkipServer(stats.getSingleServerStat(input.getServer()));
     }
-    
+
     private boolean shouldSkipServer(ServerStats stats) {
         if ((circuitBreakerFiltering.getOrDefault() && stats.isCircuitBreakerTripped())
                 || stats.getActiveRequestsCount() >= getActiveConnectionsLimit()) {
@@ -1110,7 +1117,7 @@ public ZoneAvoidanceRule() {
         AvailabilityPredicate availabilityPredicate = new AvailabilityPredicate(this);
         compositePredicate = createCompositePredicate(zonePredicate, availabilityPredicate);
     }
-    
+
     private CompositePredicate createCompositePredicate(ZoneAvoidancePredicate p1, AvailabilityPredicate p2) {
         return CompositePredicate.withPredicates(p1, p2)
                              .addFallbackPredicate(p2)
@@ -1162,7 +1169,7 @@ ZoneAvoidancePredicate.java
         }
         Map<String, ZoneSnapshot> zoneSnapshot = ZoneAvoidanceRule.createSnapshot(lbStats);
         if (!zoneSnapshot.keySet().contains(serverZone)) {
-            // The server zone is unknown to the load balancer, do not filter it out 
+            // The server zone is unknown to the load balancer, do not filter it out
             return true;
         }
         logger.debug("Zone snapshots: {}", zoneSnapshot);
@@ -1173,7 +1180,7 @@ ZoneAvoidancePredicate.java
         } else {
             return false;
         }
-    }    
+    }
 
 =============================================================
 
@@ -1244,11 +1251,11 @@ ZoneAvoidanceRule.java
 
 ```java
 public interface IPing {
-    
+
     /**
      * Checks whether the given <code>Server</code> is "alive" i.e. should be
      * considered a candidate while loadbalancing
-     * 
+     *
      */
     public boolean isAlive(Server server);
 }
@@ -1256,7 +1263,7 @@ public interface IPing {
 
 `IPing`接口的继承体系如下：
 
-![](imageibbon-ping.png)
+![](image/ribbon-ping.png)
 
 它的子类实现都非常简单，不多赘述。
 
@@ -1273,9 +1280,9 @@ public interface IPing {
  * loadbalancer minimally need a set of servers to loadbalance for, a method to
  * mark a particular server to be out of rotation and a call that will choose a
  * server from the existing list of server.
- * 
+ *
  * @author stonse
- * 
+ *
  */
 public interface ILoadBalancer {
 
@@ -1284,29 +1291,29 @@ public interface ILoadBalancer {
 	 * This API also serves to add additional ones at a later time
 	 * The same logical server (host:port) could essentially be added multiple times
 	 * (helpful in cases where you want to give more "weightage" perhaps ..)
-	 * 
+	 *
 	 * @param newServers new servers to add
 	 */
 	public void addServers(List<Server> newServers);
-	
+
 	/**
 	 * Choose a server from load balancer.
-	 * 
-	 * @param key An object that the load balancer may use to determine which server to return. null if 
+	 *
+	 * @param key An object that the load balancer may use to determine which server to return. null if
 	 *         the load balancer does not use this parameter.
 	 * @return server chosen
 	 */
 	public Server chooseServer(Object key);
-	
+
 	/**
 	 * To be called by the clients of the load balancer to notify that a Server is down
 	 * else, the LB will think its still Alive until the next Ping cycle - potentially
 	 * (assuming that the LB Impl does a ping)
-	 * 
+	 *
 	 * @param server Server to mark as down
 	 */
 	public void markServerDown(Server server);
-	
+
 	/**
 	 * @deprecated 2016-01-20 This method is deprecated in favor of the
 	 * cleaner {@link #getReachableServers} (equivalent to availableOnly=true)
@@ -1334,16 +1341,16 @@ public interface ILoadBalancer {
 
 它的方法定义也相当直观，大部分方法都是操作服务实例列表，核心方法为`Server chooseServer(Object key)`。
 
-![](imageibbon-loadbalance.png)
+![](image/ribbon-loadbalance.png)
 
 `BaseLoadBalancer`实现提供了最基础的负载均衡器实现，默认采用轮询策略。
 
 ```java
     public BaseLoadBalancer(String name, IRule rule, LoadBalancerStats stats,
             IPing ping, IPingStrategy pingStrategy) {
-	
+
         logger.debug("LoadBalancer [{}]:  initialized", name);
-        
+
         this.name = name;
         this.ping = ping;
         this.pingStrategy = pingStrategy;

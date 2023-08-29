@@ -1,3 +1,20 @@
+---
+layout: default
+title: Buffer
+parent: Netty
+nav_order: 1
+grand_parent: Lib
+---
+
+<details open markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
+- TOC
+{:toc}
+</details>
+
 # AbstractReferenceCountedByteBuf
 
 几乎所有常用的缓冲区都继承`AbstractReferenceCountedByteBuf`类，这个类提供了引用计数功能，使用乐观锁修改状态。
@@ -181,36 +198,36 @@ private static int toLiveRealRefCnt(int rawCnt, int decrement) {
                 }
                 return false;
             }
-        }    
+        }
     }
 ```
 
 之后进行了修改，变为：
 
 ```java
-private ReferenceCounted retain0(int increment) { 
-    int oldRef = refCntUpdater.getAndAdd(this, increment); 
-    if (oldRef <= 0 || oldRef + increment < oldRef) { 
-        // Ensure we don't resurrect (which means the refCnt was 0) and also that we encountered an overflow. 
-        refCntUpdater.getAndAdd(this, -increment); 
-        throw new IllegalReferenceCountException(oldRef, increment); 
-    } 
-    return this; 
-} 
-
-private boolean release0(int decrement) { 
-    int oldRef = refCntUpdater.getAndAdd(this, -decrement); 
-    if (oldRef == decrement) { 
-        deallocate(); 
-        return true; 
-    } else if (oldRef < decrement || oldRef - decrement > oldRef) { 
-        // Ensure we don't over-release, and avoid underflow. 
-        refCntUpdater.getAndAdd(this, decrement); 
-        throw new IllegalReferenceCountException(oldRef, -decrement); 
-    } 
-     return false; 
+private ReferenceCounted retain0(int increment) {
+    int oldRef = refCntUpdater.getAndAdd(this, increment);
+    if (oldRef <= 0 || oldRef + increment < oldRef) {
+        // Ensure we don't resurrect (which means the refCnt was 0) and also that we encountered an overflow.
+        refCntUpdater.getAndAdd(this, -increment);
+        throw new IllegalReferenceCountException(oldRef, increment);
+    }
+    return this;
 }
-``` 
+
+private boolean release0(int decrement) {
+    int oldRef = refCntUpdater.getAndAdd(this, -decrement);
+    if (oldRef == decrement) {
+        deallocate();
+        return true;
+    } else if (oldRef < decrement || oldRef - decrement > oldRef) {
+        // Ensure we don't over-release, and avoid underflow.
+        refCntUpdater.getAndAdd(this, decrement);
+        throw new IllegalReferenceCountException(oldRef, -decrement);
+    }
+     return false;
+}
+```
 
 可以看出，这和我们的惯性思维完全一致，引用计数值每次加一减一，但是这也引发一个并发问题，考虑下面的场景：
 
@@ -1863,7 +1880,7 @@ protected synchronized PoolThreadCache initialValue() {
 
 注意`if (DEFAULT_CACHE_TRIM_INTERVAL_MILLIS > 0)`。
 
-关于这个优化的问题的讨论，查看 https://github.com/netty/netty/pull/8941 
+关于这个优化的问题的讨论，查看 https://github.com/netty/netty/pull/8941
 
 # PooledByteBuf
 
@@ -2079,36 +2096,36 @@ Netty通过一个ByteBuf子类——CompositeByteBuf——实现了这个模式�
 下面展示了如何通过使用JDK的ByteBuffer来实现这一需求。创建了一个包含两个ByteBuffer的数组用来保存这些消息组件，同时创建了第三个ByteBuffer用来保存所有这些数据的副本。
 
 ```java
-//   Use    an   array to   hold the    message parts 
-ByteBuffer[] message = new ByteBuffer[] { header, body }; 
-//   Create a new ByteBuffer and use copy to merge the header and    body    
-ByteBuffer message2 = ByteBuffer.allocate(header.remaining() + body.remaining()); 
-message2.put(header); 
-message2.put(body); message2.flip(); 
+//   Use    an   array to   hold the    message parts
+ByteBuffer[] message = new ByteBuffer[] { header, body };
+//   Create a new ByteBuffer and use copy to merge the header and    body
+ByteBuffer message2 = ByteBuffer.allocate(header.remaining() + body.remaining());
+message2.put(header);
+message2.put(body); message2.flip();
 ```
 
 分配和复制操作，以及伴随着对数组管理的需要，使得这个版本的实现效率低下而且笨拙。下面展示了一个使用了CompositeByteBuf的版本：
 
 ```java
-CompositeByteBuf messageBuf = Unpooled.compositeBuffer(); 
-ByteBuf headerBuf = ...;   // can be backing or direct 
+CompositeByteBuf messageBuf = Unpooled.compositeBuffer();
+ByteBuf headerBuf = ...;   // can be backing or direct
 ByteBuf bodyBuf = ...;     // can be backing or direct message
-Buf.addComponents(headerBuf, bodyBuf); 
-..... 
-messageBuf.removeComponent(0); 
-// remove the header 
+Buf.addComponents(headerBuf, bodyBuf);
+.....
+messageBuf.removeComponent(0);
+// remove the header
 for (ByteBuf buf : messageBuf) {
-      System.out.println(buf.toString()); 
+      System.out.println(buf.toString());
 }
 ```
 
 CompositeByteBuf可能不支持访问其支撑数组，因此访问CompositeByteBuf中的数据类似于（访问）直接缓冲区的模式，如下所示：
 
 ```java
-CompositeByteBuf compBuf = Unpooled.compositeBuffer(); 
-int length = compBuf.readableBytes(); 
-byte[] array = new byte[length]; 
-compBuf.getBytes(compBuf.readerIndex(), array); 
+CompositeByteBuf compBuf = Unpooled.compositeBuffer();
+int length = compBuf.readableBytes();
+byte[] array = new byte[length];
+compBuf.getBytes(compBuf.readerIndex(), array);
 handleArray(array, 0, array.length);
 ```
 

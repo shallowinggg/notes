@@ -1,3 +1,10 @@
+---
+layout: default
+title: Test
+parent: SpringBoot
+grand_parent: Lib
+---
+
 # SpringBoot Test
 
 在日常的编码工作中，测试理应是一个较为重要的组成部分。通过测试可以极大减少一些粗心导致的小错误，加快迭代的速度。同时，良好的应用`TDD`模式也可以帮助我们理清编码的细节。

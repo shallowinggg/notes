@@ -1,3 +1,10 @@
+---
+layout: default
+title: Start
+parent: SpringBoot
+grand_parent: Lib
+---
+
 SpringBoot常规启动方式：
 
 ```java
@@ -132,7 +139,7 @@ SpringBoot常规启动方式：
 | org.springframework.boot.builder.ParentContextCloserApplicationListener | ParentContextAvailableEvent | 父容器关闭时，让子容器也随之关闭 |
 | org.springframework.boot.cloud.CloudFoundryVcapEnvironmentPostProcessor | ApplicationPreparedEvent | |
 | org.springframework.boot.context.FileEncodingApplicationListener | ApplicationEnvironmentPreparedEvent | 检查文件编码，`file.encoding`和`spring.mandatory-file-encoding`必须相同 |
-| org.springframework.boot.context.config.AnsiOutputApplicationListener | ApplicationEnvironmentPreparedEvent | 控制台输出彩色日志 | 
+| org.springframework.boot.context.config.AnsiOutputApplicationListener | ApplicationEnvironmentPreparedEvent | 控制台输出彩色日志 |
 | org.springframework.boot.context.config.ConfigFileApplicationListener | ApplicationEnvironmentPreparedEvent, ApplicationPreparedEvent | 读取application.properties / yaml文件 |
 | org.springframework.boot.context.config.DelegatingApplicationListener | ApplicationEvent | 读取通过`context.listener.classes`配置的`ApplicationListener`，并将事件转发 |
 | org.springframework.boot.context.logging.ClasspathLoggingApplicationListener | ApplicationEnvironmentPreparedEvent, ApplicationFailedEvent | 如果启用了`DEBUG`日志，打印当前classpath |

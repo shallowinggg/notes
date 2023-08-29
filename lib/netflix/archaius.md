@@ -1,3 +1,10 @@
+---
+layout: default
+title: archaius
+parent: Netflix
+grand_parent: Lib
+---
+
 archaius是netflix开源的动态属性配置框架，基于apache commons configuration, 提供在运行时获取配置值的功能。
 
 # Apache Commons Configuration
@@ -27,9 +34,9 @@ Integer integer = config.getInteger("number");
 
 `Archaius`通过继承`AbstractConfiguration`类自定义了一套便于使用的配置源，如下所示：
 
-![](../euraka/image/archaius-Configuration.png)
+![](./image/archaius-Configuration.png)
 
-![](../euraka/image/archaius-ConcurrentMapConfiguration.png)
+![](./image/archaius-ConcurrentMapConfiguration.png)
 
 `ConcurrentMapConfiguration`使用`ConcurrentHashMap`存储配置信息，以获取吞吐量和线程安全性的平衡。除此以外，它还覆盖了`AbstractConfiguration`类的配置监听器`ConfigurationListener`的增删方法，通过`CopyOnWriteArrayList`类代替`synchronized`最大程度无锁化。
 
@@ -44,7 +51,7 @@ Integer integer = config.getInteger("number");
             Object previousValue = map.putIfAbsent(key, value);
             if (previousValue == null) {
                 return;
-            }   
+            }
             if (previousValue instanceof List)
             {
                 // the value is added to the existing list
@@ -89,14 +96,14 @@ Integer integer = config.getInteger("number");
 
     /**
      * Poll the configuration source to get the latest content.
-     * 
+     *
      * @param initial true if this operation is the first poll.
-     * @param checkPoint Object that is used to determine the starting point if the result returned is incremental. 
+     * @param checkPoint Object that is used to determine the starting point if the result returned is incremental.
      *          Null if there is no check point or the caller wishes to get the full content.
      * @return The content of the configuration which may be full or incremental.
      * @throws Exception If any exception occurs when fetching the configurations.
      */
-    public PollResult poll(boolean initial, Object checkPoint) throws Exception;    
+    public PollResult poll(boolean initial, Object checkPoint) throws Exception;
     }
 ```
 
@@ -104,9 +111,9 @@ Integer integer = config.getInteger("number");
 
 ```java
     /**
-     * Initiate the first poll of the configuration source and schedule the runnable. This may start a new thread or 
+     * Initiate the first poll of the configuration source and schedule the runnable. This may start a new thread or
      * thread pool depending on the implementation of {@link #schedule(Runnable)}.
-     * 
+     *
      * @param source Configuration source being polled
      * @param config Configuration where the properties will be updated
      * @throws RuntimeException if any error occurs in the initial polling
@@ -119,15 +126,15 @@ Integer integer = config.getInteger("number");
 
     /**
      * Do an initial poll from the source and apply the result to the configuration.
-     * 
+     *
      * @param source source of the configuration
      * @param config Configuration to apply the polling result
      * @throws RuntimeException if any error occurs in polling the configuration source
      */
-    protected synchronized void initialLoad(final PolledConfigurationSource source, final Configuration config) {      
+    protected synchronized void initialLoad(final PolledConfigurationSource source, final Configuration config) {
         PollResult result = null;
         try {
-            result = source.poll(true, null); 
+            result = source.poll(true, null);
             checkPoint = result.getCheckPoint();
             fireEvent(EventType.POLL_SUCCESS, result, null);
         } catch (Throwable e) {
@@ -135,19 +142,19 @@ Integer integer = config.getInteger("number");
         }
         try {
             populateProperties(result, config);
-        } catch (Throwable e) {                        
-            throw new RuntimeException("Unable to load Properties", e);            
+        } catch (Throwable e) {
+            throw new RuntimeException("Unable to load Properties", e);
         }
     }
 
     /**
      * Apply the polled result to the configuration.
-     * If the polled result is full result from source, each property in the result is either added to set 
+     * If the polled result is full result from source, each property in the result is either added to set
      * to the configuration, and any property that is in the configuration but not in the result is deleted if ignoreDeletesFromSource
-     * is false. If the polled result is incremental, properties added and changed in the partial result 
+     * is false. If the polled result is incremental, properties added and changed in the partial result
      * are set with the configuration, and deleted properties are deleted form configuration if ignoreDeletesFromSource
      * is false.
-     * 
+     *
      * @param result Polled result from source
      */
     protected void populateProperties(final PollResult result, final Configuration config) {
@@ -192,7 +199,7 @@ Integer integer = config.getInteger("number");
                     for (String name: props.keySet()) {
                         propertyUpdater.deleteProperty(name, config);
                     }
-                }            
+                }
             }
         }
     }
@@ -216,7 +223,7 @@ Integer integer = config.getInteger("number");
 ```java
     /**
      * Create the instance for the default list of URLs, which is composed by the following order
-     * 
+     *
      * <ul>
      * <li>A configuration file (default name to be <code>config.properties</code>, see {@link #DEFAULT_CONFIG_FILE_NAME}) on the classpath
      * <li>A list of URLs defined by system property {@value #CONFIG_URL} with values separated by comma <code>","</code>.
@@ -230,19 +237,19 @@ Integer integer = config.getInteger("number");
         }
         String[] fileNames = getDefaultFileSources();
         if (fileNames.length != 0) {
-            urlList.addAll(Arrays.asList(createUrls(fileNames)));                    
-        } 
-        if (urlList.size() == 0) { 
+            urlList.addAll(Arrays.asList(createUrls(fileNames)));
+        }
+        if (urlList.size() == 0) {
             configUrls = new URL[0];
             logger.warn("No URLs will be polled as dynamic configuration sources.");
-            logger.info("To enable URLs as dynamic configuration sources, define System property " 
+            logger.info("To enable URLs as dynamic configuration sources, define System property "
                     + CONFIG_URL + " or make " + DEFAULT_CONFIG_FILE_FROM_CLASSPATH + " available on classpath.");
         } else {
             configUrls = urlList.toArray(new URL[urlList.size()]);
             logger.info("URLs to be used as dynamic configuration source: " + urlList);
         }
     }
-    
+
     private URL getConfigFileFromClasspath() {
         URL url = null;
         // attempt to load from the context classpath
@@ -267,7 +274,7 @@ Integer integer = config.getInteger("number");
 ```java
     /**
      * Create an instance with a list URLs to be used.
-     * 
+     *
      * @param urls list of URLs to be used
      */
     public URLConfigurationSource(String... urls) {
@@ -286,7 +293,7 @@ Integer integer = config.getInteger("number");
         } catch (Throwable e) {
             throw new RuntimeException(e);
         }
-        return urls;        
+        return urls;
     }
 ```
 
@@ -294,7 +301,7 @@ Integer integer = config.getInteger("number");
 
 ```java
     public PollResult poll(boolean initial, Object checkPoint)
-            throws IOException {    
+            throws IOException {
         if (configUrls == null || configUrls.length == 0) {
             return PollResult.createFull(null);
         }
@@ -334,21 +341,21 @@ public interface WatchedUpdateListener {
 public interface WatchedConfigurationSource {
     /**
      * Add {@link WatchedUpdateListener} listener
-     * 
+     *
      * @param l
      */
     public void addUpdateListener(WatchedUpdateListener l);
 
     /**
      * Remove {@link WatchedUpdateListener} listener
-     * 
+     *
      * @param l
      */
     public void removeUpdateListener(WatchedUpdateListener l);
 
     /**
      * Get a snapshot of the latest configuration data.<BR>
-     * 
+     *
      * Note: The correctness of this data is only as good as the underlying config source's view of the data.
      */
     public Map<String, Object> getCurrentData() throws Exception;
@@ -367,9 +374,9 @@ public interface WatchedConfigurationSource {
 # Usage
 
 ```java
-// create a property whose value is type long and use 1000 as the default 
+// create a property whose value is type long and use 1000 as the default
 // if the property is not defined
-DynamicLongProperty timeToWait = 
+DynamicLongProperty timeToWait =
   DynamicPropertyFactory.getInstance().getLongProperty("lock.waitTime", 1000);
 // ...
 ReentrantLock lock = ...;
@@ -469,11 +476,11 @@ public static DynamicPropertyFactory getInstance() {
             instance = createDefaultConfigInstance();
             registerConfigBean();
         }
-        return instance;        
+        return instance;
     }
 
     private static AbstractConfiguration createDefaultConfigInstance() {
-        ConcurrentCompositeConfiguration config = new ConcurrentCompositeConfiguration();  
+        ConcurrentCompositeConfiguration config = new ConcurrentCompositeConfiguration();
         try {
             DynamicURLConfiguration defaultURLConfig = new DynamicURLConfiguration();
             config.addConfiguration(defaultURLConfig, URL_CONFIG_NAME);
@@ -619,7 +626,7 @@ public static DynamicPropertyFactory getInstance() {
             }
         }
     }
-``` 
+```
 
 回调处理主要是将`DynamicPropertyListener`注册到`DynamicPropertySupport`上，以使得配置源中的配置发生更改时可以通知`DynamicProperty`中保存的值进行动态更新。
 
@@ -638,7 +645,7 @@ public class DynamicProperty {
      * subject to gc, so holding them in the collection does not cause
      * a memory leak.
      */
-    
+
     private static final ConcurrentHashMap<String, DynamicProperty> ALL_PROPS
         = new ConcurrentHashMap<String, DynamicProperty>();
 ```

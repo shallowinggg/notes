@@ -1,3 +1,10 @@
+---
+layout: default
+title: NameServer
+parent: RocketMQ
+grand_parent: 消息队列
+---
+
 在本节中，我们了解`RocketMQ`的注册中心是如何实现的。
 
 Version: 4.5.2
@@ -404,7 +411,7 @@ private final HashMap<String/* clusterName */, Set<String/* brokerName */>> clus
 // 当前存活的broker信息
 private final HashMap<String/* brokerAddr */, BrokerLiveInfo> brokerLiveTable;
 
-// 
+//
 private final HashMap<String/* brokerAddr */, List<String>/* Filter Server */> filterServerTable;
 ```
 

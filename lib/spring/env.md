@@ -1,3 +1,10 @@
+---
+layout: default
+title: Environment
+parent: Spring
+grand_parent: Lib
+---
+
 `org.springframework.core.env`包的核心功能是为应用提供一套运行环境。主要包含两个功能：`profiles`以及`properties`。
 
 当给定的`profile`被激活时，只有特定的一组bean会被注册到容器中。这是`Spring`应用环境中特有的功能。

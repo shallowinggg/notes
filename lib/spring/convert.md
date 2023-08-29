@@ -1,3 +1,10 @@
+---
+layout: default
+title: Convert
+parent: Spring
+grand_parent: Lib
+---
+
 `Spring`内置了一套类型转换服务，位于`org.springframework.core.convert`包中。通过此转换服务，`Spring`为我们解决了许多脏活，例如`SpringMVC`中将入参转换为合适的类型。除此以外，我们可以通过它提供的API来构造自定义的转换器，并与`Spring`默认提供的转换器协同工作。
 
 ## Converter
@@ -431,7 +438,7 @@ public interface ConfigurableConversionService extends ConversionService, Conver
 			}
 			return null;
 		}
-    
+
     }
 
     // support methods

@@ -1,3 +1,11 @@
+---
+layout: default
+title: 处理连接
+parent: Undertow
+grand_parent: Lib
+nav_order: 2
+---
+
 上一节`bootstrap`中分析了`Undertow`的启动过程，接下来让我们看一下它是如何处理`HTTP`连接以及请求的。
 
 在`WrokerThread#run()`方法中，存在下面一段代码：
