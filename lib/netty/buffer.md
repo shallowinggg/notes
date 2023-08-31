@@ -2091,7 +2091,7 @@ Netty通过一个ByteBuf子类——CompositeByteBuf——实现了这个模式�
 
 因为我们不想为每个消息都重新分配这两个缓冲区，所以使用CompositeByteBuf是一个完美的选择。它在消除了没必要的复制的同时，暴露了通用的ByteBuf API。下图展示了生成的消息布局：
 
-![](/images/netty/CompositeByteBuf.png)
+![](https://raw.githubusercontent.com/shallowinggg/notes/main/images/netty/CompositeByteBuf.png)
 
 下面展示了如何通过使用JDK的ByteBuffer来实现这一需求。创建了一个包含两个ByteBuffer的数组用来保存这些消息组件，同时创建了第三个ByteBuffer用来保存所有这些数据的副本。
 

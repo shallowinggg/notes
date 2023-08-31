@@ -136,7 +136,7 @@ CDN 主要有以下优点：
 - 在读缓存之前先判断缓存是否是最新的，如果不是最新的先进行更新。
 - 消息队列异步双删
 
-![](/images/redis/mq-delete.png)
+![](https://raw.githubusercontent.com/shallowinggg/notes/main/images/redis/mq-delete.png)
 
 - 利用队列串行化
 由于并发时序导致的数据不一致的情况，都是因为写请求还没有结束读请求读取的是旧数据，如果读请求在写请求之后处理，即请求的处理能够串行化的话，就能保证读请求读到的是写请求更新的最新的数据。
@@ -173,7 +173,7 @@ CDN 主要有以下优点：
 - Read Through：当数据发生更新时，查询缓存时更新缓存，然后由缓存层同步的更新数据库即可，对调用方而言只需要和缓存层交互即可；
 - Write Through：Write Through 套路和Read Through相仿，不过是在更新数据时发生。当有数据更新的时候，如果没有命中缓存，直接更新数据库，然后返回。如果命中了缓存，则更新缓存，然后再由Cache自己同步更新数据库。
 
-![](/images/redis/rw-through.png)
+![](https://raw.githubusercontent.com/shallowinggg/notes/main/images/redis/rw-through.png)
 
 #### Write Behind Cache Pattern
 

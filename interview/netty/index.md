@@ -142,11 +142,11 @@ EventLoopGroup负责为每个新创建的Channel分配一个EventLoop。在当�
 
 ## bootstrap
 
-![init](/images/netty/init.png)
+![init](https://raw.githubusercontent.com/shallowinggg/notes/main/images/netty/init.png)
 
-![register](/images/netty/register.png)
+![register](https://raw.githubusercontent.com/shallowinggg/notes/main/images/netty/register.png)
 
-![bind](/images/netty/bind.png)
+![bind](https://raw.githubusercontent.com/shallowinggg/notes/main/images/netty/bind.png)
 
 ## event
 
@@ -187,7 +187,7 @@ Entry(flushedEntry) --> ... Entry(unflushedEntry) --> ... Entry(tailEntry)
 
 当`Bootstrap`开始连接服务器时，连接操作是异步操作，并不一定会立刻成功，因此如果没有立刻连接，需要注册`CONNECT`事件等待连接成功。当eventloop检测到此事件时，需要等待其连接成功，方可执行读写操作。
 
-![read-write](/images/netty/rw.png)
+![read-write](https://raw.githubusercontent.com/shallowinggg/notes/main/images/netty/rw.png)
 
 ## decode
 
