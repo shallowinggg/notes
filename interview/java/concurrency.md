@@ -685,6 +685,12 @@ after
 
 [Java SE 9 Enum Thread.State](https://docs.oracle.com/javase/9/docs/api/java/lang/Thread.State.html)
 
+### 实现
+
+Java中有两种线程实现。native线程映射到由主机操作系统实现的线程抽象，操作系统负责native线程调度和时间切片。
+
+第二种线程是“绿色线程”。这些都是由JVM本身实现和管理的，由JVM实现线程调度。自 Java 1.2 以来，Sun / Oracle JVM 不再支持 Java 绿色线程实现。（参见[Green Threads vs Non Green Threads](https://stackoverflow.com/questions/5713142/green-threads-vs-non-green-threads)）
+
 ## 七、J.U.C - AQS
 
 java.util.concurrent（J.U.C）大大提高了并发性能，AQS 被认为是 J.U.C 的核心。
@@ -1912,6 +1918,56 @@ JDK 1.6 引入了偏向锁和轻量级锁，从而让锁拥有了四个状态：
 - [聊聊并发（八）——Fork/Join 框架介绍](http://ifeve.com/talk-concurrency-forkjoin/)
 - [Eliminating SynchronizationRelated Atomic Operations with Biased Locking and Bulk Rebiasing](http://www.oracle.com/technetwork/java/javase/tech/biasedlocking-oopsla2006-preso-150106.pdf)
 - [聊聊 Java 的几把 JVM 级锁](https://mp.weixin.qq.com/s/h3VIUyH9L0v14MrQJiiDbw)
+
+# 常见并发模型
+
+## CSP
+
+![CSP](https://res.cloudinary.com/practicaldev/image/fetch/s--J_DgxtEP--/c_limit%2Cf_auto%2Cfl_progressive%2Cq_auto%2Cw_800/https://raw.githubusercontent.com/karanpratapsingh/portfolio/master/public/static/blogs/csp-actor-model-concurrency/csp.png)
+
+Communicating Sequential Processes (CSP) is a model put forth by Tony Hoare in 1978 which describes interactions between concurrent processes.
+It made a breakthrough in Computer Science, especially in the field of concurrency.
+
+In CSP we use "channels" for communication and synchronization. Although there is decoupling between the processes, they are still coupled to the channel.
+
+It is fully synchronous, a channel writer must block until a channel reader reads. The advantage of that blocking based mechanism is that a channel only needs to ever hold one message. It's also in many ways easier to reason about.
+
+CSP is implemented in languages like Go with goroutines and channels.
+
+## Actor
+
+![Actor](https://res.cloudinary.com/practicaldev/image/fetch/s--XVf_ETHg--/c_limit%2Cf_auto%2Cfl_progressive%2Cq_auto%2Cw_800/https://raw.githubusercontent.com/karanpratapsingh/portfolio/master/public/static/blogs/csp-actor-model-concurrency/actor.png)
+
+Actor model was put forth by Carl Hewitt in 1973 and it adopts the philosophy that everything is an actor. This is similar to the everything is an object philosophy used by some object-oriented programming languages.
+
+It is inherently asynchronous, a message sender will not block whether the reader is ready to pull from the mailbox or not, instead the message goes into a queue usually called a "mailbox". Which is convenient, but it's a bit harder to reason about and mailboxes potentially have to hold a lot of messages.
+
+Each process has a single mailbox, messages are put into the receiver's mailbox by the sender, and fetched by the receiver.
+
+Actor model is implemented in languages such as Erlang and Scala. In Java world, Akka is commonly used for this.
+
+### Actor vs CSP
+
+Some differences between the actor model and communicating sequential processes:
+
+- Processes in CSP are anonymous, while actors have identities.
+- CSP uses channels for message passing, whereas actors use mailboxes.
+- Actor must only communicate through message delivery, hence making them stateless.
+- CSP messages are delivered in the order they were sent.
+- The actor model was designed for distributed programs, so it can scale across several machines.
+- Actor model is more decoupled than CSP.
+
+## BSP
+
+![BSP](https://people.cs.rutgers.edu/~pxk/417/notes/images/bsp-500.png)
+
+[Bulk Synchronous Parallel and Pregel](https://people.cs.rutgers.edu/~pxk/417/notes/pregel.html)
+
+## 参考资料
+
+- [CSP vs Actor model for concurrency](https://dev.to/karanpratapsingh/csp-vs-actor-model-for-concurrency-1cpg)
+- [Bulk Synchronous Parallel and Pregel](https://people.cs.rutgers.edu/~pxk/417/notes/pregel.html)
+- [Concurrency_(computer_science)#Models](https://en.wikipedia.org/wiki/Concurrency_(computer_science)#Models)
 
 
 ## 常见面试题

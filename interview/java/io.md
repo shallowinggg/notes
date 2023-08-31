@@ -596,7 +596,7 @@ NIO 与普通 I/O 的区别主要有以下两点：
 
 ## io,nio,aio
 
-[io-model](https://www.cnblogs.com/diegodu/p/6823855.html)
+[io-model](https://www.jianshu.com/p/b8203d46895c)
 
 ## epoll，poll
 
