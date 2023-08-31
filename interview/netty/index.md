@@ -142,11 +142,11 @@ EventLoopGroup负责为每个新创建的Channel分配一个EventLoop。在当�
 
 ## bootstrap
 
-![init](https://upload-images.jianshu.io/upload_images/13068256-de37aee5c7ade547.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![init](https://i.postimg.cc/zG06gb83/image.png)
 
-![register](https://upload-images.jianshu.io/upload_images/13068256-ebbff30cf8abfde8.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![register](https://i.postimg.cc/qqsZMg1J/image.png)
 
-![bind](https://upload-images.jianshu.io/upload_images/13068256-431c8cc388df610e.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![bind](https://i.postimg.cc/JnJpPGVN/image.png)
 
 ## event
 
@@ -187,7 +187,7 @@ Entry(flushedEntry) --> ... Entry(unflushedEntry) --> ... Entry(tailEntry)
 
 当`Bootstrap`开始连接服务器时，连接操作是异步操作，并不一定会立刻成功，因此如果没有立刻连接，需要注册`CONNECT`事件等待连接成功。当eventloop检测到此事件时，需要等待其连接成功，方可执行读写操作。
 
-![read-write](https://upload-images.jianshu.io/upload_images/13068256-8a6706c6bc4401c4.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![read-write](https://i.postimg.cc/Qtpqcw1S/image.png)
 
 ## decode
 

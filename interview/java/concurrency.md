@@ -638,7 +638,7 @@ after
 
 一个线程只能处于一种状态，并且这里的线程状态特指 Java 虚拟机的线程状态，不能反映线程在特定操作系统下的状态。
 
-![](https://upload-images.jianshu.io/upload_images/13068256-5068a578fc4cac1e.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![](https://i.postimg.cc/3wT4mVwL/13068256-5068a578fc4cac1e.webp)
 
 ### 新建（NEW）
 
@@ -690,11 +690,11 @@ java.util.concurrent（J.U.C）大大提高了并发性能，AQS 被认为是 J.
 
 ### AQS
 
-![lock](https://upload-images.jianshu.io/upload_images/13068256-b06b30e5d28906ce.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![lock](https://i.postimg.cc/fbR38XxX/image.png)
 
 线程构造节点同步入队后，如果前一个节点是头节点，那么可以尝试获取锁，此时获取锁的几率较大；否则更改前驱节点的状态为`SIGNAL`，这样如果前驱节点释放锁时将能够唤醒此节点以获取锁。如果下一次循环依然无法获取锁，则阻塞等待唤醒。由于将前驱节点设置为`SIGNAL`后，前驱节点可能正好释放了锁，因此需要再循环一次以尝试获取锁，否则此线程将会永远阻塞。
 
-![unlock](https://upload-images.jianshu.io/upload_images/13068256-2fea1f5c3831520f.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![unlock](https://i.postimg.cc/Dy38tRr7/image.png)
 
 #### PROPAGATE状态的引入
 
@@ -766,7 +766,7 @@ final void lock() {
 
 #### Condition
 
-![Condition](https://upload-images.jianshu.io/upload_images/13068256-096a1d4d2c348ce0.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![Condition](https://i.postimg.cc/pdrTfvHJ/image.png)
 
 调用`Condition`的常用方法时要求一定要已经持有互斥锁，否则将抛出异常。
 
@@ -893,7 +893,7 @@ public class SemaphoreExample {
 ```
 
 ### 读写锁
-![read-write](https://upload-images.jianshu.io/upload_images/13068256-929ca0d3c5f046bd.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![read-write](https://i.postimg.cc/ncnnKxK9/image.png)
 
 读写锁将同步状态按位切割，高16位存储读锁状态，低16位存储写锁状态。通过移位计算`s >>> 16`获取读锁状态，`s & ((1 << 16) -1)`读取写锁状态。
 
@@ -944,7 +944,7 @@ try {
 
 #### 使用long维护同步状态
 
-![state](https://upload-images.jianshu.io/upload_images/13068256-8d56474e1675ede9.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![state](https://i.postimg.cc/kXMd6c9x/image.png)
 
 初始状态如上图所示，它依然是按位分离，分别存储读写状态，不过读锁只占7位，当读锁被获取的次数超过最大值时，将使用一个新的`int`值存储溢出值。因此读状态最大可达`Integer#MAX_VALUE + (1 << 7) - 2` 。写锁则独占第8位，当第8位被置位了，则代表写锁被持有了。同步状态剩余的位数都提供给写状态使用，用于记录写锁被获取的次数。不过这个锁不支持写可重入，并且读状态溢出时也需要进行额外的处理步骤。
 
@@ -970,7 +970,7 @@ try {
 
 写锁被释放时会在同步状态上增加`10000000`，即记录写锁被获取的次数。
 
-![StampedLock-write](https://upload-images.jianshu.io/upload_images/13068256-9d85acc161bcd888.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![StampedLock-write](https://i.postimg.cc/9Xp6h7Tz/image.png)
 
 #### 悲观读锁
 
@@ -987,7 +987,7 @@ try {
 
 如果CLH队列中存在等待锁的线程，那么即使已经有其他线程获取到了读锁，此线程依然无法获取读锁，因为需要避免写线程饥饿。
 
-![StampedLock-read](https://upload-images.jianshu.io/upload_images/13068256-104c8fedeaec0ade.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![StampedLock-read](https://i.postimg.cc/K8KwBpWg/image.png)
 
 
 ## 八、J.U.C - 其它组件
@@ -1060,7 +1060,7 @@ other task is running...
 
 可以调用`submit`等方法代替`execute`方法向线程池提交任务，这些方法会返回一个`Future`，用户可以通过此`Future`等待任务执行完成或者取消任务。当任务正常完成时，会通知在此`Future`上等待结果的所有线程获取结果；任务处理出现用户自定义异常时，等待线程将会获取一个`ExecutionException`，它包装了真实异常；当任务被取消了，则会抛出`CancellationException`。
 
-![image.png](https://upload-images.jianshu.io/upload_images/13068256-9704b357375521e3.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![image.png](https://i.postimg.cc/kgdhZNX2/image.png)
 
 #### ScheduledThreadPoolExecutor
 
@@ -1174,23 +1174,23 @@ produce..produce..consume..consume..produce..consume..produce..consume..produce.
 
 使用栈作为数据结构，后进先出。
 
-![](https://upload-images.jianshu.io/upload_images/13068256-8ae4872be8c737dd.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![](https://i.postimg.cc/52YN7Vy4/image.png)
 
-![](https://upload-images.jianshu.io/upload_images/13068256-b98d47fd734e282d.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![](https://i.postimg.cc/bw7Y4BSQ/image.png)
 
 ##### 公平
 
 使用队列作为数据结构，先进先出。
 
-![](https://upload-images.jianshu.io/upload_images/13068256-acbb17f154f1bc13.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![](https://i.postimg.cc/gk5G6TDf/image.png)
 
-![](https://upload-images.jianshu.io/upload_images/13068256-f23b32c8d3486dd2.jpg?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![](https://i.postimg.cc/FKxtGWyF/image.png)
 
 ### LongAdder
 
 虽然`AtomicInteger`, `AtomicLong`等提供原子更新的能力，但是当在高并发的场景下会存在大量线程自旋，导致CPU消耗过多且还是无效执行。而`LongAdder`则缓解了这个问题，它是基于分段锁的思想实现的：
 
-![LongAdder](https://upload-images.jianshu.io/upload_images/13068256-c4d0d43b5f6b1126.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240)
+![LongAdder](https://i.postimg.cc/6psDKJz5/image.png)
 
  `LongAdder` 也是基于 `Unsafe` 提供的 `CAS` 操作 + `volatile` 去实现的。在 `LongAdder` 的父类 `Striped64` 中维护着一个 base 变量和一个 cell 数组，当多个线程操作一个变量的时候，先会在这个 base 变量上进行 cas 操作，当它发现线程增多的时候，就会使用 cell 数组。比如当 base 将要更新的时候发现线程增多（也就是调用 casBase 方法更新 base 值失败），那么它会自动使用 cell 数组，每一个线程对应于一个 cell ，在每一个线程中对该 cell 进行 cas 操作，这样就可以将单一 value 的更新压力分担到多个 value 中去，降低单个 value 的 “热度”，同时也减少了大量线程的空转，提高并发效率，分散并发压力。这种分段锁需要额外维护一个内存空间 cells ，不过在高并发场景下，这点成本几乎可以忽略。
 
@@ -1210,7 +1210,7 @@ Java 7 与 8的区别：
 
 ### ConcurrentSkipListMap
 
-![](https://upload-images.jianshu.io/upload_images/7509658-b3caa2bc1e9db136.png?imageMogr2/auto-orient/strip|imageView2/2/w/1061/format/webp)
+![](https://i.postimg.cc/3wfsPycz/image.png)
 
 
 ### ForkJoin
