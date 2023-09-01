@@ -214,23 +214,23 @@ getBean(..)
 > Spring 5.0开始在`RootBeanDefinition`中提供了`Supplier<?> instanceSupplier`字段，可以在手动注册bean时提供，它提供了一种自定义创建bean实例的方法，并在`createBeanInstance`方法中通过`obtainFromSupplier(instanceSupplier, beanName)`使用，它的优先级高于工厂方法。
 
 > 后置处理器应用顺序：
-InstantiationAwareBeanPostProcessor#postProcessBeforeInstantiation()
-通过构造方法实例化bean
-MergedBeanDefinitionPostProcessor#postProcessMergedBeanDefinition()
-InstantiationAwareBeanPostProcessor#postProcessAfterInstantiation()
-准备字段值
-InstantiationAwareBeanPostProcessor#postProcessProperties
-注入字段值
-BeanPostProcessor#postProcessBeforeInitialization()
-调用初始化方法
-BeanPostProcessor#postProcessAfterInitialization()
+> 1. InstantiationAwareBeanPostProcessor#postProcessBeforeInstantiation()
+> 2. 通过构造方法实例化bean
+> 3. MergedBeanDefinitionPostProcessor#postProcessMergedBeanDefinition()
+> 4. InstantiationAwareBeanPostProcessor#postProcessAfterInstantiation()
+> 5. 准备字段值
+> 6. InstantiationAwareBeanPostProcessor#postProcessProperties
+> 7. 注入字段值
+> 8. BeanPostProcessor#postProcessBeforeInitialization()
+> 9. 调用初始化方法
+> 10. BeanPostProcessor#postProcessAfterInitialization()
 
 > 初始化方法优先级：
-InitializingBean#afterPropertiesSet
-@PostConstruct
-自定义init-method
-\
-其中`@PostConstruct`定义`在CommonAnnotationBeanPostProcessor`类中，它实现了`BeanPostProcessor`接口，当调用`BeanPostProcessor#postProcessBeforeInitialization()`方法时会执行`@PostConstruct`注解中定义的方法
+> 1. InitializingBean#afterPropertiesSet
+> 2. @PostConstruct
+> 3. 自定义init-method
+>
+> 其中`@PostConstruct`定义`在CommonAnnotationBeanPostProcessor`类中，它实现了`BeanPostProcessor`接口，当调用`BeanPostProcessor#postProcessBeforeInitialization()`方法时会执行`@PostConstruct`注解中定义的方法
 
 ## Spring IoC可拓展点
 
