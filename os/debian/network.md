@@ -88,3 +88,45 @@ TODO!!!
 > 当无法运行图形界面，或者出于某种原因不希望这样做时，可以使用`wireshark`的纯文本版本`tshark`。大多数捕获和解码功能仍然可用，但缺乏图形界面必然会限制与程序的交互（捕获数据包后对其进行过滤、跟踪给定的 TCP 连接等）。如果打算进行进一步的操作并且需要图形界面，则可以将数据包保存到文件中，然后可以将该文件加载到另一台计算机上运行的图形`wireshark` 中。
 
 
+### iperf3
+
+可以使用`iperf3`进行网络速度测试。
+
+分别在两台服务器上安装`iperf3`工具：
+```sh
+sudo apt-get install iperf3
+```
+
+然后在一台服务器上启动`iperf3 server`，另一个服务器连接此`server`进行测试：
+```sh
+# server
+iperf3 -s
+# Server listening on 5201
+
+# client
+iperf3 -c 192.168.x.x 5201
+```
+
+`iperf3`工具会输出测试结果，例如：
+```
+iperf3 -c 192.168.31.209 5201
+Connecting to host 192.168.31.209, port 5201
+[  5] local 192.168.31.150 port 47402 connected to 192.168.31.209 port 5201
+[ ID] Interval           Transfer     Bitrate         Retr  Cwnd
+[  5]   0.00-1.00   sec   114 MBytes   957 Mbits/sec    9   1022 KBytes
+[  5]   1.00-2.00   sec   112 MBytes   944 Mbits/sec    0   1022 KBytes
+[  5]   2.00-3.00   sec   112 MBytes   944 Mbits/sec    0   1022 KBytes
+[  5]   3.00-4.00   sec   112 MBytes   944 Mbits/sec    0   1022 KBytes
+[  5]   4.00-5.00   sec   112 MBytes   943 Mbits/sec    0   1022 KBytes
+[  5]   5.00-6.00   sec   111 MBytes   934 Mbits/sec    0   1022 KBytes
+[  5]   6.00-7.00   sec   112 MBytes   944 Mbits/sec    0   1022 KBytes
+[  5]   7.00-8.00   sec   112 MBytes   944 Mbits/sec    0   1022 KBytes
+[  5]   8.00-9.00   sec   112 MBytes   944 Mbits/sec    0   1022 KBytes
+[  5]   9.00-10.00  sec   112 MBytes   942 Mbits/sec    0   1022 KBytes
+- - - - - - - - - - - - - - - - - - - - - - - - -
+[ ID] Interval           Transfer     Bitrate         Retr
+[  5]   0.00-10.00  sec  1.10 GBytes   944 Mbits/sec    9             sender
+[  5]   0.00-10.04  sec  1.10 GBytes   937 Mbits/sec                  receiver
+
+iperf Done.
+```
