@@ -2,7 +2,7 @@
 layout: default
 title: 数据准备
 parent: Elasticsearch
-grand_parent: database
+grand_parent: 数据库
 ---
 
 ## Why

@@ -2,7 +2,7 @@
 layout: default
 title: Rest APIs
 parent: Elasticsearch
-grand_parent: database
+grand_parent: 数据库
 ---
 
 ## cat APIs
