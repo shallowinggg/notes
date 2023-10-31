@@ -5,6 +5,15 @@ parent: 数据库
 has_children: true
 ---
 
+<details open markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
+- TOC
+{:toc}
+</details>
+
 `Elasticsearch` 是一个用 Java 编写并构建在 `Lucene` 之上的开源搜索引擎。 `Lucene`是一个快速、高性能的搜索引擎库，为`Elasticsearch`的搜索赋能。我们对数据建立索引是为了快速得到搜索结果，索引可以是不同类型的。 `Lucene` 使用倒排索引，其中创建数据结构来保存每个单词的列表。现在，你一定在想，如果 `Lucene` 提供了一切，我们为什么还要使用 `Elasticsearch`。答案是`Lucene`不太好直接使用，因为我们需要编写Java代码来使用它。而且它本质上不是分布式的，因此不容易在多个节点上扩展。 `Elasticsearch`利用了`Lucene`的搜索功能加上其他扩展，这使得它成为当前最著名的搜索引擎。它封装了`Lucene`的复杂性并提供了`REST API`，使用它我们可以轻松地与`Elasticsearch`进行交互。它还通过语言客户端提供对不同编程语言的支持，因此我们可以使用任何特定语言进行编码并与`Elasticsearch`交互。我们还可以使用控制台使用 CURL 与 `Elasticsearch` 进行交互。
 
 总而言之，`Elasticsearch` 是一个构建在 `Lucene` 之上的开源、分布式、可扩展、基于 REST、面向文档的搜索引擎。 `Elasticsearch` 集群可以在一台服务器或数百台服务器上运行，并且可以毫无问题地处理 PB 级数据。

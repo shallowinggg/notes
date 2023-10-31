@@ -5,6 +5,15 @@ parent: Elasticsearch
 grand_parent: 数据库
 ---
 
+<details open markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
+- TOC
+{:toc}
+</details>
+
 ## Request body search
 
 Elasticsearch request body使用查询 DSL（特定于域的语言），它作为 API 层来执行原始 Elasticsearch 查询。使用请求体查询，我们可以使用方便且简洁的语法轻松构建复杂的搜索查询和数据聚合查询。

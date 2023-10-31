@@ -5,6 +5,15 @@ parent: Elasticsearch
 grand_parent: 数据库
 ---
 
+<details open markdown="block">
+  <summary>
+    Table of contents
+  </summary>
+  {: .text-delta }
+- TOC
+{:toc}
+</details>
+
 ## cat APIs
 
 Elasticsearch为我们提供了获取所有详细信息的API，但它们提供了JSON数据，这通常不太好看到状态。例如，如果我们想查看集群的健康状况，最好获取快照而不是 JSON 文档来探索。 Elasticsearch cat API 帮助我们实现了这一点，并且我们可以获得对我们重要的数字。我们可以使用cat API获取集群、索引、分片等的健康状态，并且它还列出了所有索引。
